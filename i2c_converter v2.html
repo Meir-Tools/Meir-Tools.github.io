@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>I2C ממיר כתובת עם המחשה</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      direction: rtl;
+      background-color: #f4f4f4;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    input, button {
+      font-size: 1em;
+      padding: 6px 12px;
+      margin-top: 10px;
+    }
+
+    .output {
+      margin-top: 20px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #ccc;
+      line-height: 1.8;
+    }
+
+    .frame {
+      font-family: 'Courier New', monospace;
+      background-color: #eee;
+      padding: 5px 10px;
+      border-radius: 5px;
+      display: inline-block;
+      margin-top: 5px;
+    }
+
+    .bit {
+      display: inline-block;
+      width: 20px;
+      text-align: center;
+    }
+
+    .rw {
+      color: blue;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>ממיר כתובות I2C עם Frame</h1>
+
+  <label for="i2cAddress">הכנס כתובת עבד (7 ביט) ב־hex (למשל: 3C):</label><br>
+  <input type="text" id="i2cAddress" placeholder="3C">
+  <button onclick="convertAddress()">המר</button>
+
+  <div class="output" id="output"></div>
+
+  <script>
+    function toBinaryString(num) {
+      return num.toString(2).padStart(8, '0');
+    }
+
+    function buildFrame(binaryStr) {
+      return binaryStr
+        .split('')
+        .map((bit, index) => {
+          let cls = index === 7 ? 'bit rw' : 'bit';
+          return `<span class="${cls}">${bit}</span>`;
+        })
+        .join('');
+    }
+
+    function convertAddress() {
+      const input = document.getElementById("i2cAddress").value.trim();
+      const output = document.getElementById("output");
+
+      let address = parseInt(input, 16);
+
+      if (isNaN(address) || address < 0x00 || address > 0x7F) {
+        output.innerHTML = "❌ כתובת לא חוקית. הכנס ערך בין 00 ל-7F.";
+        return;
+      }
+
+      const writeAddress = address << 1;
+      const readAddress = (address << 1) | 1;
+
+      const writeBin = toBinaryString(writeAddress);
+      const readBin = toBinaryString(readAddress);
+
+      output.innerHTML = `
+        <div>
+          <strong>כתובת לכתיבה (Write):</strong> 0x${writeAddress.toString(16).padStart(2, '0').toUpperCase()}<br>
+          <span class="frame">${buildFrame(writeBin)}</span><br>
+          <small>(הביט האחרון - <span class="rw">0</span> - מסמן כתיבה)</small>
+        </div>
+        <br>
+        <div>
+          <strong>כתובת לקריאה (Read):</strong> 0x${readAddress.toString(16).padStart(2, '0').toUpperCase()}<br>
+          <span class="frame">${buildFrame(readBin)}</span><br>
+          <small>(הביט האחרון - <span class="rw">1</span> - מסמן קריאה)</small>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
