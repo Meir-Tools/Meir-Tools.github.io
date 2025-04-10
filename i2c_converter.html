@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>I2C כתובת לקריאה/כתיבה</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      direction: rtl;
+      padding: 20px;
+      background-color: #f0f0f0;
+    }
+    input, button {
+      font-size: 1em;
+      padding: 5px;
+      margin-top: 10px;
+    }
+    .output {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>ממיר כתובות I2C (7 ביט → 8 ביט)</h1>
+  <label for="i2cAddress">הכנס כתובת עבד (7 ביט) ב-hex (למשל: 3C):</label><br>
+  <input type="text" id="i2cAddress" placeholder="3C">
+  <button onclick="convertAddress()">המר</button>
+
+  <div class="output" id="output"></div>
+
+  <script>
+    function convertAddress() {
+      const input = document.getElementById("i2cAddress").value;
+      const output = document.getElementById("output");
+
+      let address = parseInt(input, 16);
+
+      if (isNaN(address) || address < 0 || address > 0x7F) {
+        output.innerHTML = "❌ כתובת לא חוקית. הכנס ערך בין 00 ל-7F.";
+        return;
+      }
+
+      const writeAddress = address << 1;
+      const readAddress = (address << 1) | 1;
+
+      output.innerHTML = `
+        כתובת לכתיבה (Write): 0x${writeAddress.toString(16).padStart(2, '0').toUpperCase()}<br>
+        כתובת לקריאה (Read): 0x${readAddress.toString(16).padStart(2, '0').toUpperCase()}
+      `;
+    }
+  </script>
+</body>
+</html>
