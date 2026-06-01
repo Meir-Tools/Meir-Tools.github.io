@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firmware Flasher & Control Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0d1117;
+      --card-bg: #161b22;
+      --text-primary: #c9d1d9;
+      --text-secondary: #8b949e;
+      --accent-success: #238636;
+      --accent-hover: #2ea043;
+      --accent-disabled: #21262d;
+      --danger: #f85149;
+      --border-color: #30363d;
+      --terminal-bg: #010409;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-primary);
+      margin: 0;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .banner {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--accent-success);
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+      font-size: 0.95em;
+      box-sizing: border-box;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 600px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      box-sizing: border-box;
+    }
+    .card.disabled {
+      opacity: 0.4;
+      pointer-events: none;
+      transform: scale(0.98);
+    }
+    h2 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 1.25em;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .step-badge {
+      background-color: var(--border-color);
+      color: #fff;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85em;
+      font-weight: bold;
+    }
+    p {
+      margin: 0 0 20px 0;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      font-size: 0.95em;
+    }
+    button {
+      background-color: var(--accent-success);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 12px 20px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    button:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+    button:hover:not(:disabled) {
+      background-color: var(--accent-hover);
+    }
+    button:disabled {
+      background-color: var(--accent-disabled);
+      color: var(--text-secondary);
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 15px;
+      font-weight: 600;
+      font-size: 0.9em;
+      min-height: 1.2em;
+    }
+    .progress-container {
+      width: 100%;
+      background-color: var(--bg-color);
+      border-radius: 6px;
+      margin-top: 15px;
+      overflow: hidden;
+      display: none;
+      border: 1px solid var(--border-color);
+      height: 10px;
+    }
+    .progress-bar {
+      height: 100%;
+      background-color: var(--accent-success);
+      width: 0%;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 10px var(--accent-success);
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .controls input {
+      flex: 1;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-color);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 1em;
+    }
+    .controls input:focus {
+      outline: none;
+      border-color: var(--accent-success);
+    }
+    .controls button {
+      flex: 0 0 auto;
+      padding: 12px 24px;
+    }
+    #terminal {
+      background-color: var(--terminal-bg);
+      color: #79c0ff;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      height: 250px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-size: 0.85em;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="banner">
+    <strong>Hobbyist Firmware Flasher</strong><br>
+    <span style="font-size: 0.9em; color: var(--text-secondary);">If your device isn't recognized, please ensure you have the CH340 drivers installed.</span>
+  </div>
+
+  <!-- Step 1: Connection -->
+  <div class="card" id="cardStep1">
+    <h2><span class="step-badge">1</span> Connect Device</h2>
+    <p>Select your board type and connect to the COM port. Your browser will securely prompt you for permission.</p>
+    
+    <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;">
+      <label for="boardSelect" style="font-weight: 600; font-size: 0.9em; color: var(--text-secondary);">Board Type (Baud Rate):</label>
+      <select id="boardSelect" style="padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-primary); font-family: inherit; font-size: 0.95em; cursor: pointer;">
+        <option value="uno">Arduino Uno / Nano (New Bootloader) - 115200 Baud</option>
+        <option value="nano">Arduino Nano (Old Bootloader) - 57600 Baud</option>
+        <option value="pro-mini">Arduino Pro Mini - 57600 Baud</option>
+      </select>
+    </div>
+
+    <button id="btnConnect">
+      <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM4.5 7.5a.5.5 0 0 0 0 1h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H4.5z"/>
+      </svg>
+      Connect Board
+    </button>
+    <div class="status" id="statusConnect">Disconnected</div>
+  </div>
+
+  <!-- Step 2: Flashing -->
+  <div class="card disabled" id="cardStep2">
+    <h2><span class="step-badge">2</span> Flash Firmware</h2>
+    <p>Select the firmware file you wish to upload to your microcontroller. Do not disconnect your board.</p>
+    
+    <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;">
+      <label for="firmwareSelect" style="font-weight: 600; font-size: 0.9em; color: var(--text-secondary);">Select Firmware:</label>
+      <select id="firmwareSelect" style="padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-primary); font-family: inherit; font-size: 0.95em; cursor: pointer; appearance: auto;">
+        <option value="hello_sketch_jun1b.ino.hex">hello_sketch_jun1b.ino.hex (Hosted)</option>
+        <option value="sketch_may12a.ino.hex">sketch_may12a.ino.hex (Hosted)</option>
+        <option value="custom">-- Upload Custom / Local File --</option>
+      </select>
+      <input type="file" id="customFileInput" accept=".hex" style="display: none; margin-top: 8px; padding: 5px; color: var(--text-primary);">
+    </div>
+
+    <button id="btnFlash">
+      <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+      </svg>
+      Flash Firmware
+    </button>
+    <div class="status" id="statusFlash"></div>
+    <div class="progress-container" id="progressContainer">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+  </div>
+
+  <!-- Step 3: Control Panel -->
+  <div class="card disabled" id="cardStep3">
+    <h2><span class="step-badge">3</span> Device Control</h2>
+    <p>Interact with your board in real-time. Serial monitor operates at 9600 baud.</p>
+    <form id="serialForm" class="controls">
+      <input type="text" id="serialInput" placeholder="Type a command and press Enter..." autocomplete="off">
+      <button type="submit" id="btnSend">Send</button>
+    </form>
+    <div id="terminal"></div>
+  </div>
+
+  <!-- Capture avrgirl-arduino UMD export -->
+  <script>
+    var module = { exports: {} };
+    var exports = module.exports;
+  </script>
+  <script src="https://unpkg.com/avrgirl-arduino@latest/dist/avrgirl-arduino.js"></script>
+  <script>
+    var AvrgirlArduino = module.exports;
+    delete window.module;
+    delete window.exports;
+  </script>
+  
+  <script type="module">
+    // ==========================================
+    // CONFIGURATION
+    // ==========================================
+    const SERIAL_BAUD = 9600;       // Baud rate for Step 3 communication
+
+    // ==========================================
+    // STATE & DOM ELEMENTS
+    // ==========================================
+    let serialPort = null;
+    let keepReading = false;
+    let reader = null;
+    let writer = null;
+
+    const btnConnect = document.getElementById('btnConnect');
+    const statusConnect = document.getElementById('statusConnect');
+    
+    const cardStep2 = document.getElementById('cardStep2');
+    const btnFlash = document.getElementById('btnFlash');
+    const statusFlash = document.getElementById('statusFlash');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+
+    const cardStep3 = document.getElementById('cardStep3');
+    const serialForm = document.getElementById('serialForm');
+    const serialInput = document.getElementById('serialInput');
+    const terminal = document.getElementById('terminal');
+
+    // Helper: append text to terminal with throttling
+    let textBuffer = '';
+    let updateTimeout = null;
+
+    function printTerminal(text, isError = false) {
+      if (isError) {
+        // Render errors immediately
+        const span = document.createElement('span');
+        span.textContent = text;
+        span.style.color = 'var(--danger)';
+        span.style.fontWeight = 'bold';
+        terminal.appendChild(span);
+        terminal.scrollTop = terminal.scrollHeight;
+        return;
+      }
+
+      // Buffer normal text to prevent UI freezing
+      textBuffer += text;
+      if (!updateTimeout) {
+        updateTimeout = setTimeout(() => {
+          const span = document.createElement('span');
+          span.textContent = textBuffer;
+          terminal.appendChild(span);
+          
+          // Limit terminal DOM size to prevent memory leaks
+          while (terminal.childNodes.length > 200) {
+            terminal.removeChild(terminal.firstChild);
+          }
+          
+          terminal.scrollTop = terminal.scrollHeight;
+          textBuffer = '';
+          updateTimeout = null;
+        }, 50); // update every 50ms
+      }
+    }
+
+    // ==========================================
+    // STEP 1: CONNECTION
+    // ==========================================
+    btnConnect.addEventListener('click', async () => {
+      try {
+        if (!navigator.serial) {
+          throw new Error("Web Serial API not supported in this browser. Please use Chrome or Edge.");
+        }
+        
+        // Request the serial port from user
+        serialPort = await navigator.serial.requestPort();
+        
+        statusConnect.textContent = "Connected to COM Port";
+        statusConnect.style.color = "var(--accent-success)";
+        btnConnect.style.backgroundColor = "var(--border-color)";
+        btnConnect.innerHTML = `<svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0zM4.5 7.5a.5.5 0 0 0 0 1h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H4.5z"/></svg> Re-connect`;
+        
+        // Unlock Step 2 and Step 3 immediately
+        cardStep2.classList.remove('disabled');
+        cardStep3.classList.remove('disabled');
+        btnFlash.disabled = false;
+        
+        // Start serial monitor immediately
+        await initSerialControl();
+      } catch (err) {
+        statusConnect.textContent = "Connection cancelled or failed. Please try again.";
+        statusConnect.style.color = "var(--danger)";
+        console.error(err);
+      }
+    });
+
+    // ==========================================
+    // STEP 2: FLASHING
+    // ==========================================
+    btnFlash.addEventListener('click', async () => {
+      try {
+        btnFlash.disabled = true;
+        
+        // Close the serial monitor temporarily so avrgirl can flash
+        await closeSerial();
+
+        // VERY IMPORTANT: Wait 800ms to let the Windows CH340 driver fully release the COM port handle.
+        // If we reopen instantly, the driver glitches and drops the first TX bytes (causing the 400ms timeout!)
+        await new Promise(r => setTimeout(r, 800));
+
+        statusFlash.textContent = "Fetching firmware...";
+        statusFlash.style.color = "var(--text-primary)";
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '10%';
+
+        // Determine buffer source
+        let hexText;
+        const firmwareFile = document.getElementById('firmwareSelect').value;
+
+        if (firmwareFile === 'custom') {
+          const fileInput = document.getElementById('customFileInput');
+          if (!fileInput.files || fileInput.files.length === 0) {
+            throw new Error("Please select a local .hex file first.");
+          }
+          hexText = await fileInput.files[0].text();
+        } else {
+          // Fetch the hosted .hex file
+          try {
+            const response = await fetch(firmwareFile);
+            if (!response.ok) {
+              throw new Error(`Status: ${response.status}`);
+            }
+            hexText = await response.text();
+          } catch (fetchErr) {
+            if (window.location.protocol === 'file:') {
+              throw new Error("Local file fetch blocked by CORS. Please use the '-- Upload Custom / Local File --' option instead.");
+            }
+            throw fetchErr;
+          }
+        }
+
+        const selectedBoard = document.getElementById('boardSelect').value;
+        const baudRate = (selectedBoard === 'uno') ? 115200 : 57600;
+
+        try {
+          // Robust custom STK500v1 Web Serial Flasher
+          await flashCustomSTK500(serialPort, hexText, baudRate, (pct) => {
+            progressBar.style.width = pct + '%';
+            statusFlash.textContent = `Flashing... ${pct}%`;
+          });
+
+          statusFlash.textContent = "Flash Successful! Device restarting...";
+          progressBar.style.width = '100%';
+          progressBar.style.backgroundColor = 'var(--success)';
+        } catch (error) {
+          statusFlash.textContent = `Flash failed: ${error.message}`;
+          progressBar.style.width = '100%';
+          progressBar.style.backgroundColor = 'var(--danger)';
+        }
+
+        await new Promise(r => setTimeout(r, 500));
+        await initSerialControl();
+        btnFlash.disabled = false;
+      } catch (err) {
+        statusFlash.textContent = "Error: " + err.message;
+        statusFlash.style.color = "var(--danger)";
+        btnFlash.disabled = false;
+      }
+    });
+
+    // ==========================================
+    // NATIVE STK500v1 FLASHER (Replaces avrgirl)
+    // ==========================================
+    async function flashCustomSTK500(port, hexText, baudRate, onProgress) {
+      // 1. Parse Intel Hex format
+      const pageSize = 128;
+      const lines = hexText.split('\n');
+      let flashData = new Uint8Array(32768);
+      flashData.fill(0xFF);
+      let maxAddr = 0;
+      
+      for (let line of lines) {
+        line = line.trim();
+        if (line[0] !== ':') continue;
+        let byteCount = parseInt(line.substr(1, 2), 16);
+        let address = parseInt(line.substr(3, 4), 16);
+        let recordType = parseInt(line.substr(7, 2), 16);
+        if (recordType === 0) { 
+          for (let i = 0; i < byteCount; i++) {
+            flashData[address + i] = parseInt(line.substr(9 + i*2, 2), 16);
+          }
+          if (address + byteCount > maxAddr) maxAddr = address + byteCount;
+        }
+      }
+      
+      const totalPages = Math.ceil(maxAddr / pageSize);
+      if (totalPages === 0) throw new Error("Hex file is empty or invalid.");
+
+      // 2. Hardware DTR Reset
+      if (!port.readable && !port.writable) {
+        await port.open({ baudRate });
+      }
+      await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+      await new Promise(r => setTimeout(r, 50));
+      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+      await new Promise(r => setTimeout(r, 250)); 
+      
+      const writer = port.writable.getWriter();
+      const reader = port.readable.getReader();
+      
+      let readBuffer = [];
+      let keepReading = true;
+      
+      const readLoop = async () => {
+        while (keepReading) {
+          try {
+            const {value, done} = await reader.read();
+            if (done) break;
+            if (value) {
+              for (let i = 0; i < value.length; i++) readBuffer.push(value[i]);
+            }
+          } catch (e) {
+            break;
+          }
+        }
+      };
+      const readPromise = readLoop();
+      
+      const recv = async (len, timeoutMs = 1000) => {
+        let elapsed = 0;
+        while (readBuffer.length < len) {
+          await new Promise(r => setTimeout(r, 10));
+          elapsed += 10;
+          if (elapsed > timeoutMs) throw new Error("Receive timeout");
+        }
+        return readBuffer.splice(0, len);
+      };
+      
+      const send = async (bytes) => {
+        await writer.write(new Uint8Array(bytes));
+      };
+
+      try {
+        // 3. Sync with bootloader
+        let synced = false;
+        for (let i = 0; i < 5; i++) {
+          await send([0x30, 0x20]);
+          try {
+            let res = await recv(2, 200);
+            if (res[0] === 0x14 && res[1] === 0x10) { synced = true; break; }
+          } catch (e) {
+            readBuffer = []; // flush buffer on timeout
+          }
+        }
+        if (!synced) throw new Error("Sync failed. Make sure the correct Board Type is selected.");
+
+        // 4. Enter prog mode
+        await send([0x50, 0x20]);
+        await recv(2);
+
+        // 5. Flash pages
+        for (let p = 0; p < totalPages; p++) {
+          let pageAddr = (p * pageSize) / 2;
+          await send([0x55, pageAddr & 0xFF, (pageAddr >> 8) & 0xFF, 0x20]);
+          await recv(2);
+          
+          let cmd = [0x64, 0x00, pageSize, 0x46];
+          for (let i = 0; i < pageSize; i++) {
+            cmd.push(flashData[p * pageSize + i]);
+          }
+          cmd.push(0x20);
+          await send(cmd);
+          await recv(2);
+          
+          onProgress(Math.round(((p + 1) / totalPages) * 100));
+        }
+
+        // 6. Leave prog mode
+        await send([0x51, 0x20]);
+        await recv(2);
+      } finally {
+        keepReading = false;
+        try { await reader.cancel(); } catch(e){}
+        try { await readPromise; } catch(e){}
+        try { writer.releaseLock(); } catch(e){}
+        try { await port.close(); } catch(e){}
+      }
+    }
+
+    // ==========================================
+    // STEP 3: CONTROL PANEL
+    // ==========================================
+    let readLoopPromise = null;
+
+    async function initSerialControl() {
+      try {
+        if (!serialPort) {
+          serialPort = await navigator.serial.requestPort();
+        }
+        
+        // Open port if not already open
+        if (!serialPort.readable && !serialPort.writable) {
+          printTerminal("Opening serial port...\n");
+          await serialPort.open({ baudRate: SERIAL_BAUD });
+          printTerminal(`Connected at ${SERIAL_BAUD} baud.\n`);
+        }
+        
+        if (!keepReading) {
+          keepReading = true;
+          readLoopPromise = readLoop();
+        }
+      } catch (err) {
+        printTerminal(`Failed to open serial port: ${err.message}\n`, true);
+      }
+    }
+
+    async function closeSerial() {
+      keepReading = false;
+      if (reader) {
+        try { await reader.cancel(); } catch (e) {}
+      }
+      if (readLoopPromise) {
+        try { await readLoopPromise; } catch (e) {}
+        readLoopPromise = null;
+      }
+      if (writer) {
+        try { writer.releaseLock(); } catch (e) {}
+      }
+      if (serialPort) {
+        try { 
+          await serialPort.close(); 
+          printTerminal("Serial port closed for flashing...\n"); 
+        } catch (e) {}
+      }
+    }
+
+    async function readLoop() {
+      while (serialPort.readable && keepReading) {
+        reader = serialPort.readable.getReader();
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            const text = new TextDecoder().decode(value);
+            printTerminal(text);
+          }
+        } catch (error) {
+          printTerminal(`\n[Read Error]: ${error.message}\n`, true);
+          keepReading = false; // Stop the loop to prevent infinite browser crash
+          break;
+        } finally {
+          reader.releaseLock();
+          reader = null;
+        }
+      }
+    }
+
+    async function sendSerial(data) {
+      if (!serialPort || !serialPort.writable) {
+        printTerminal("\n[Error]: Serial port not connected or not writable.\n", true);
+        return;
+      }
+      try {
+        writer = serialPort.writable.getWriter();
+        const encoder = new TextEncoder();
+        await writer.write(encoder.encode(data));
+        printTerminal(`> ${data}`); // Echo the command
+        writer.releaseLock();
+      } catch (error) {
+        printTerminal(`\n[Write Error]: ${error.message}\n`, true);
+        if (writer) writer.releaseLock();
+      }
+    }
+
+    // Attach form submit event for Serial commands
+    serialForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = serialInput.value;
+      if (val !== "") {
+        sendSerial(val + "\n");
+        serialInput.value = "";
+      }
+    });
+    // Show/hide file input based on dropdown selection
+    document.getElementById('firmwareSelect').addEventListener('change', (e) => {
+      const fileInput = document.getElementById('customFileInput');
+      if (e.target.value === 'custom') {
+        fileInput.style.display = 'block';
+      } else {
+        fileInput.style.display = 'none';
+      }
+    });
+
+  </script>
+</body>
+</html>
