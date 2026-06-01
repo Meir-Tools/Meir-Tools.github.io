@@ -211,9 +211,7 @@
     <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;">
       <label for="firmwareSelect" style="font-weight: 600; font-size: 0.9em; color: var(--text-secondary);">Select Firmware:</label>
       <select id="firmwareSelect" style="padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-primary); font-family: inherit; font-size: 0.95em; cursor: pointer; appearance: auto;">
-        <option value="hello_sketch_jun1b.ino.hex">hello_sketch_jun1b.ino.hex (Hosted)</option>
-        <option value="sketch_may12a.ino.hex">sketch_may12a.ino.hex (Hosted)</option>
-        <option value="custom">-- Upload Custom / Local File --</option>
+        <option value="">Loading firmwares...</option>
       </select>
       <input type="file" id="customFileInput" accept=".hex" style="display: none; margin-top: 8px; padding: 5px; color: var(--text-primary);">
     </div>
@@ -645,6 +643,53 @@
         fileInput.style.display = 'none';
       }
     });
+
+    // Fetch firmware list dynamically from GitHub API
+    async function loadFirmwares() {
+      const select = document.getElementById('firmwareSelect');
+      try {
+        const response = await fetch('https://api.github.com/repos/Meir-Tools/Meir-Tools.github.io/contents/KONIBOX');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const files = await response.json();
+        
+        select.innerHTML = ''; // Clear loading text
+        let hexFound = false;
+        
+        files.forEach(file => {
+          if (file.name.endsWith('.hex')) {
+            const option = document.createElement('option');
+            option.value = file.name;
+            option.textContent = `${file.name} (Hosted)`;
+            select.appendChild(option);
+            hexFound = true;
+          }
+        });
+        
+        if (!hexFound) {
+          const option = document.createElement('option');
+          option.value = "";
+          option.textContent = "-- No HEX files found --";
+          select.appendChild(option);
+        }
+        
+        // Add the custom option at the end
+        const customOption = document.createElement('option');
+        customOption.value = 'custom';
+        customOption.textContent = '-- Upload Custom / Local File --';
+        select.appendChild(customOption);
+        
+      } catch (error) {
+        console.error('Error loading firmwares:', error);
+        select.innerHTML = '';
+        const customOption = document.createElement('option');
+        customOption.value = 'custom';
+        customOption.textContent = '-- Upload Custom / Local File --';
+        select.appendChild(customOption);
+      }
+    }
+    
+    // Call loadFirmwares on page load
+    loadFirmwares();
 
   </script>
 </body>
