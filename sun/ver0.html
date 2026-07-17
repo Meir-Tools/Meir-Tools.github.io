@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סימולטור שמש וצל - מפה מסתובבת פיזית</title>
+    <title>סימולטור שמש וצל מדעי - גרסה יציבה</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -11,84 +11,63 @@
 
     <style>
         * { box-sizing: border-box; }
-        body { font-family: system-ui, sans-serif; background: #f4f4f9; padding: 8px; color: #333; margin: 0; overflow-x: hidden; }
+        body { font-family: system-ui, sans-serif; background: #f4f4f9; padding: 8px; color: #333; margin: 0; }
         .container { max-width: 1050px; margin: 0 auto; background: white; padding: 16px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; }
         h2 { margin-top: 0; color: #1e3a8a; text-align: center; font-size: 22px; }
+        .sub-title { text-align: center; color: #666; font-size: 13px; margin-top: -5px; margin-bottom: 15px; }
         
         .layout { display: flex; gap: 15px; flex-direction: column; }
         .controls { width: 100%; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
+        .map-container { width: 100%; border-radius: 8px; border: 1px solid #ccc; overflow: hidden; }
         
-        /* קונטיינר קשיח ועגול שמחזיק את המפה המסתובבת */
-        .map-wrapper { 
-            width: 100%; 
-            height: 450px; 
-            overflow: hidden; 
-            border-radius: 12px; 
-            border: 2px solid #ccc; 
-            position: relative;
-            background: #e5e7eb;
-        }
-        
-        /* המפה עצמה - קיבלה הגדרת תלת-ממד קשיחה לסיבוב חלק */
-        #map { 
-            width: 100%; 
-            height: 100%; 
-            transform-origin: center center;
-            will-change: transform;
-        }
-        
-        /* כוונת מרכז קבועה שלא מסתובבת */
-        .map-crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 24px; height: 24px; border: 2px solid #2563eb; border-radius: 50%; z-index: 10; pointer-events: none; }
-        .map-crosshair::before { content: ''; position: absolute; top: 50%; left: -6px; right: -6px; height: 2px; background: #2563eb; transform: translateY(-50%); }
-        .map-crosshair::after { content: ''; position: absolute; left: 50%; top: -6px; bottom: -6px; width: 2px; background: #2563eb; transform: translateX(-50%); }
-
-        /* כפתורי גיבוי לסיבוב ידני אם החיישן חסום בדפדפן */
-        .manual-rotation-box { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
-        .rotate-btn { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        #map { height: 450px; width: 100%; z-index: 1; }
         
         .slider-group { margin: 15px 0; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
         .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #1e40af; }
+        
         .slider-container { position: relative; margin-bottom: 10px; padding: 10px 0; }
         input[type="range"] { width: 100%; cursor: pointer; position: relative; z-index: 2; background: transparent; -webkit-appearance: none; margin: 0; }
         input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 10px; background: transparent; border-radius: 5px; }
-        input[type="range"]::-webkit-slider-thumb { height: 26px; width: 26px; border-radius: 50%; background: #2563eb; cursor: pointer; -webkit-appearance: none; margin-top: -8px; }
+        input[type="range"]::-webkit-slider-thumb { height: 26px; width: 26px; border-radius: 50%; background: #2563eb; cursor: pointer; -webkit-appearance: none; margin-top: -8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
         
-        .heat-bar { position: absolute; top: 15px; left: 0; right: 0; height: 10px; border-radius: 5px; background: linear-gradient(to left, #eab308 0%, #eab308 41.6%, #ef4444 41.6%, #ef4444 83.3%, #eab308 83.3%, #eab308 100%); z-index: 1; }
-        .heat-warning { background: #fee2e2; color: #991b1b; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; margin-top: 8px; display: none; }
-        .safe-light { background: #f0fdf4; color: #166534; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center; margin-top: 8px; }
+        .heat-bar { position: absolute; top: 15px; left: 0; right: 0; height: 10px; border-radius: 5px; background: linear-gradient(to left, #eab308 0%, #eab308 41.6%, #ef4444 41.6%, #ef4444 83.3%, #eab308 83.3%, #eab308 100%); z-index: 1; pointer-events: none; }
+        
+        .heat-warning { background: #fee2e2; color: #991b1b; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 14px; text-align: center; margin-top: 8px; border: 1px solid #fca5a5; display: none; }
+        .safe-light { background: #f0fdf4; color: #166534; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 14px; text-align: center; margin-top: 8px; border: 1px solid #bbf7d0; }
 
         .input-group { margin-bottom: 12px; }
         label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 14px; }
-        input[type="number"] { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; }
+        input[type="number"] { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; }
         
-        .result-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 12px; }
+        .result-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 12px; font-size: 15px; }
+        .result-box p { margin: 8px 0; }
         .highlight { font-weight: bold; color: #1d4ed8; }
         
-        .compass-box { background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; text-align: center; font-size: 14px; cursor: pointer; }
-        .compass-active { background: #f0fdf4; border-color: #99f6e4; color: #0f766e; }
+        .sky-chart { margin-top: 15px; border-top: 2px dashed #cbd5e1; padding-top: 15px; width: 100%; }
+        .sky-track { height: 110px; background: linear-gradient(to top, #bae6fd, #e0f2fe); border-radius: 8px; position: relative; border-bottom: 4px solid #e2e8f0; overflow: hidden; }
+        .sun-node { width: 22px; height: 22px; background: #f59e0b; border-radius: 50%; position: absolute; bottom: 0; right: 0; transform: translate(50%, 50%); box-shadow: 0 0 12px #f59e0b; transition: all 0.1s ease; z-index: 3; }
+        .sky-label { position: absolute; bottom: 8px; font-size: 11px; color: #64748b; font-weight: bold; white-space: nowrap; }
 
-        @media (min-width: 768px) { .layout { flex-direction: row; } .controls { flex: 1; max-width: 350px; } .map-container { flex: 2; } }
+        .legend { margin-top: 10px; font-size: 13px; line-height: 1.5; }
+        .legend-item { display: inline-block; margin-left: 12px; margin-bottom: 4px; }
+        .legend-color { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: middle; margin-left: 4px; }
+
+        @media (min-width: 768px) {
+            .layout { flex-direction: row; }
+            .controls { flex: 1; max-width: 350px; }
+            .map-container { flex: 2; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>סימולטור שמש וצל - מפה מסתובבת חיה</h2>
-    
-    <!-- כפתורי סיבוב ידניים לגיבוי מלא -->
-    <div class="manual-rotation-box">
-        <button class="rotate-btn" onclick="rotateMapManually(-15)">🔄 סובב שמאלה (-15°)</button>
-        <button class="rotate-btn" onclick="rotateMapManually(15)">🔄 סובב ימינה (+15°)</button>
-    </div>
-
-    <div id="compassStatus" class="compass-box" onclick="activateCompassManually()">⚡ לחץ כאן כדי לסנכרן מצפן אוטומטי מהחיישן</div>
+    <h2>סימולטור שמש וצל אסטרונומי</h2>
+    <p class="sub-title">מזרח = ימינה | מערב = שמאלה | דרום = למטה | צפון = למעלה</p>
 
     <div class="layout">
         <div class="map-container">
-            <div class="map-wrapper">
-                <div class="map-crosshair"></div>
-                <div id="map"></div>
-            </div>
+            <div id="map"></div>
         </div>
         
         <div class="controls">
@@ -106,16 +85,33 @@
                     <input type="range" id="timeSlider" min="6" max="18" step="0.25" value="12" oninput="updateSimulation()" disabled>
                     <div class="heat-bar"></div>
                 </div>
-                <div id="heatWarning" class="heat-warning">⚠️ עומס חום כבד</div>
-                <div id="safeLight" class="safe-light">☀️ שמש מתונה ורכה</div>
+                
+                <div id="heatWarning" class="heat-warning">⚠️ עומס חום כבד (קרינה חזקה המזיקה לצמחים עדינים)</div>
+                <div id="safeLight" class="safe-light">☀️ שמש מתונה ורכה (אידיאלי להתפתחות וצמיחה)</div>
             </div>
 
             <div class="result-box">
-                <p>📈 זווית גובה: <span class="highlight" id="sunElevation">-</span>°</p>
-                <p>🧭 כיוון השמש: <span class="highlight" id="sunAzimuth">-</span>°</p>
-                <p>📏 אורך הצל: <span class="highlight" style="color: #b91c1c;" id="shadowLength">-</span> מטרים</p>
+                <p>📈 זווית גובה (אלכסון): <span class="highlight" id="sunElevation">-</span>°</p>
+                <p>🧭 כיוון השמש (אזימוט): <span class="highlight" id="sunAzimuth">-</span>°</p>
+                <p>📏 אורך הצל המוטל: <span class="highlight" style="color: #b91c1c;" id="shadowLength">-</span> מטרים</p>
+                
+                <div class="legend">
+                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #f59e0b; background: transparent; height: 10px;"></span>קשת כתומה: מסלול השמש בדרום (למטה)</div>
+                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #eab308; background: transparent; height: 10px;"></span>קו צהוב מקווקו: כיוון הגעת קרני השמש</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #4b5563;"></span>קו אפור מוצק: הצל (הפוך מכיוון השמש)</div>
+                </div>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="container sky-chart">
+    <h3 style="margin: 0 0 10px 0; color: #334155; font-size: 14px;">📊 מבט מהצד: גובה השמש בשמיים לאורך היום (זווית הגבהה)</h3>
+    <div class="sky-track" id="skyTrack">
+        <div class="sun-node" id="sunNode"></div>
+        <div class="sky-label" style="right: 10px;">מזרח (בוקר)</div>
+        <div class="sky-label" style="left: 50%; transform: translateX(-50%);">דרום (צהריים)</div>
+        <div class="sky-label" style="left: 10px;">מערב (ערב)</div>
     </div>
 </div>
 
@@ -123,43 +119,20 @@
     let selectedLat = null;
     let selectedLng = null;
     let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
-    let currentRotation = 0; // זווית הסיבוב הנוכחית של המפה
-    let lastHeading = null;
-    const smoothingFactor = 0.15;
 
     window.onload = function() {
-        // אתחול בסיסי
-        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([32.0853, 34.7818], 9); 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // אתחול המפה עם מרכז כללי בישראל
+        map = L.map('map', { zoomControl: true }).setView([32.0853, 34.7818], 9); 
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
         map.on('click', function(e) {
             setNewLocation(e.latlng.lat, e.latlng.lng);
         });
 
         autoLoadGPS();
-        
-        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-        window.addEventListener('deviceorientation', handleOrientation, true);
     };
-
-    // פונקציית סיבוב ידנית - מוכיחה שהמפה מסתובבת פיזית על המסך!
-    function rotateMapManually(degrees) {
-        currentRotation = (currentRotation + degrees + 360) % 360;
-        applyMapRotation(currentRotation);
-    }
-
-    // פונקציית הליבה שמסובבת את אלמנט המפה ב-DOM
-    function applyMapRotation(degrees) {
-        const mapEl = document.getElementById('map');
-        // סיבוב הפוך כדי שמה שמולך יישאר למעלה
-        mapEl.style.transform = `rotate(${-degrees}deg)`;
-        
-        // שמירה כפויה על המיקום במרכז בזמן הסיבוב
-        if (selectedLat && selectedLng) {
-            map.invalidateSize({ animate: false });
-            map.panTo([selectedLat, selectedLng], { animate: false });
-        }
-    }
 
     function autoLoadGPS() {
         if (navigator.geolocation) {
@@ -170,54 +143,19 @@
                     map.setView([lat, lng], 18); 
                     setNewLocation(lat, lng);
                 },
-                (error) => { console.log("GPS נכשל"); },
+                (error) => { console.log("GPS נכשל, מחכה לבחירה ידנית במפה"); },
                 { enableHighAccuracy: true, timeout: 7000 }
             );
-        }
-    }
-
-    function activateCompassManually() {
-        document.getElementById('compassStatus').innerHTML = "🔄 מאזין לחיישן המכשיר...";
-        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-        window.addEventListener('deviceorientation', handleOrientation, true);
-    }
-
-    function handleOrientation(event) {
-        const statusBox = document.getElementById('compassStatus');
-        let heading = null;
-
-        if (event.webkitCompassHeading) {
-            heading = event.webkitCompassHeading;
-        } else if (event.absolute === true || event.alpha !== null) {
-            heading = 360 - event.alpha; 
-            if(event.beta > 45) heading = (heading + 180) % 360; 
-        }
-
-        if (heading !== null && !isNaN(heading)) {
-            statusBox.classList.add('compass-active');
-            
-            if (lastHeading === null) { lastHeading = heading; } 
-            else {
-                let diff = heading - lastHeading;
-                if (diff > 180) diff -= 360;
-                if (diff < -180) diff += 360;
-                lastHeading = (lastHeading + smoothingFactor * diff + 360) % 360;
-            }
-
-            currentRotation = Math.round(lastHeading);
-            statusBox.innerHTML = `🧭 מצפן חי פעיל! זווית מפה: ${currentRotation}°`;
-            
-            // הפעלת הסיבוב האוטומטי מהחיישן
-            applyMapRotation(currentRotation);
         }
     }
 
     function setNewLocation(lat, lng) {
         selectedLat = lat;
         selectedLng = lng;
+        
         if (marker) marker.setLatLng([lat, lng]);
         else marker = L.marker([lat, lng]).addTo(map);
-        map.panTo([lat, lng], { animate: false });
+        
         document.getElementById('timeSlider').disabled = false;
         drawSunPath();
         updateSimulation();
@@ -258,7 +196,7 @@
 
         document.getElementById('sunElevation').innerText = elevationDeg.toFixed(1);
         document.getElementById('sunAzimuth').innerText = compassAzDeg.toFixed(1);
-        document.getElementById('shadowLength').innerText = isFinite(shadowLength) ? shadowLength.toFixed(2) : "אין שמש";
+        document.getElementById('shadowLength').innerText = isFinite(shadowLength) ? shadowLength.toFixed(2) : "אין שמש (חשוך)";
 
         const isHeatStress = (sliderVal >= 11 && sliderVal <= 16);
         if (isHeatStress) {
@@ -284,6 +222,13 @@
         let shadowLat = selectedLat + (Math.sin(sunRad) * shadowLength * 0.000015);
         let shadowLng = selectedLng - (Math.cos(sunRad) * shadowLength * 0.000015);
         shadowLine = L.polyline([[selectedLat, selectedLng], [shadowLat, shadowLng]], { color: '#4b5563', weight: 5, opacity: 0.8 }).addTo(map);
+
+        const sunNode = document.getElementById('sunNode');
+        const xPercent = totalDayMinutes * 100;
+        const yPercent = (elevationDeg / 90) * 100;
+        sunNode.style.background = isHeatStress ? '#dc2626' : '#f59e0b';
+        sunNode.style.right = `${xPercent}%`;
+        sunNode.style.bottom = `calc(${yPercent}% - 11px)`;
     }
 </script>
 </body>
