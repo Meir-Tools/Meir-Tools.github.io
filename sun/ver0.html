@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סימולטור שמש וצל - מצפן יציב ללא ריצוד</title>
+    <title>סימולטור שמש וצל - מפה מסתובבת אמיתית</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- טעינת ה-API של גוגל מפס (ללא מפתח לצורך שימוש בסיסי/פיתוח) -->
+    <script src="https://maps.googleapis.com/maps/api/js?v=weekly"></script>
 
     <style>
         * { box-sizing: border-box; }
@@ -18,22 +18,11 @@
         
         .layout { display: flex; gap: 15px; flex-direction: column; }
         .controls { width: 100%; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
-        .map-container { width: 100%; border-radius: 8px; border: 1px solid #ccc; overflow: hidden; }
+        .map-container { width: 100%; border-radius: 8px; border: 1px solid #ccc; overflow: hidden; position: relative; }
         
-        #map { height: 450px; width: 100%; z-index: 1; }
+        /* גובה המפה */
+        #map { height: 450px; width: 100%; }
         
-        /* עיצוב חץ המצפן - הוספת מעבר חלק למניעת ריצודים */
-        .compass-arrow-icon {
-            width: 0;
-            height: 0;
-            border-left: 12px solid transparent;
-            border-right: 12px solid transparent;
-            border-bottom: 30px solid #2563eb;
-            filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.3));
-            /* מעבר חלק של 0.3 שניות שמונע לחלוטין את הרעידות */
-            transition: transform 0.3s ease-out; 
-        }
-
         .slider-group { margin: 15px 0; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
         .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #1e40af; }
         
@@ -63,10 +52,6 @@
         .compass-box { background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; text-align: center; font-size: 14px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .compass-active { background: #f0fdf4; border-color: #99f6e4; color: #0f766e; }
 
-        .legend { margin-top: 10px; font-size: 13px; line-height: 1.5; }
-        .legend-item { display: inline-block; margin-left: 12px; margin-bottom: 4px; }
-        .legend-color { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: middle; margin-left: 4px; }
-
         @media (min-width: 768px) {
             .layout { flex-direction: row; }
             .controls { flex: 1; max-width: 350px; }
@@ -77,10 +62,10 @@
 <body>
 
 <div class="container">
-    <h2>סימולטור שמש, צל ומצפן יציב</h2>
-    <p class="sub-title">מזרח = ימינה | מערב = שמאלה | דרום = למטה | צפון = למעלה</p>
+    <h2>סימולטור שמש וצל - מפה מסתובבת חיה</h2>
+    <p class="sub-title">החלפה לגוגל מפס: המפה מסתובבת ב-360 מעלות עם הטלפון שלך</p>
     
-    <div id="compassStatus" class="compass-box" onclick="activateCompassManually()">⚡ לחץ כאן כדי להפעיל את חץ המצפן (גרסה מיוצבת)</div>
+    <div id="compassStatus" class="compass-box" onclick="activateCompassManually()">⚡ לחץ כאן כדי לסנכרן את המצפן ולסובב את המפה</div>
 
     <div class="layout">
         <div class="map-container">
@@ -129,25 +114,35 @@
 <script>
     let selectedLat = null;
     let selectedLng = null;
-    let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
-    let compassMarker = null; 
+    let map, marker;
+    let sunPathPolyline = null; 
+    let currentSunMarker = null; 
+    let sunRayPolyline = null; 
+    let shadowPolyline = null; 
     
-    // משתנים למנגנון ייצוב המצפן
     let lastHeading = null;
-    const smoothingFactor = 0.15; // ככל שהמספר קטן יותר, הסיבוב חלק ויציב יותר (מוריד רעידות)
+    const smoothingFactor = 0.15; // ייצוב וסינון רעידות המכשיר
 
-    window.onload = function() {
-        map = L.map('map').setView([32.0853, 34.7818], 9); 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+    // אתחול מפת גוגל
+    function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: 32.0853, lng: 34.7818 },
+            zoom: 17,
+            heading: 0,
+            tilt: 0,
+            mapId: "90f8735696b5e34d", // נדרש לסיבוב וקטורי בגוגל מפס
+            disableDefaultUI: true
+        });
 
-        map.on('click', function(e) {
-            setNewLocation(e.latlng.lat, e.latlng.lng);
+        map.addListener("click", function(e) {
+            setNewLocation(e.latLng.lat(), e.latLng.lng());
         });
 
         autoLoadGPS();
-        
+    }
+
+    window.onload = function() {
+        initMap();
         window.addEventListener('deviceorientationabsolute', handleOrientation, true);
         window.addEventListener('deviceorientation', handleOrientation, true);
     };
@@ -158,17 +153,17 @@
                 (position) => {
                     let lat = position.coords.latitude;
                     let lng = position.coords.longitude;
-                    map.setView([lat, lng], 18); 
+                    map.setCenter({ lat: lat, lng: lng });
                     setNewLocation(lat, lng);
                 },
-                (error) => { console.log("GPS אוטומטי נכשל"); },
+                (error) => { console.log("GPS נכשל"); },
                 { enableHighAccuracy: true, timeout: 7000 }
             );
         }
     }
 
     function activateCompassManually() {
-        document.getElementById('compassStatus').innerHTML = "🔄 מסנכרן חיישנים ומייצב...";
+        document.getElementById('compassStatus').innerHTML = "🔄 המפה מתיישרת לפי כיוון המבט שלך...";
         window.addEventListener('deviceorientationabsolute', handleOrientation, true);
         window.addEventListener('deviceorientation', handleOrientation, true);
     }
@@ -187,35 +182,21 @@
         if (heading !== null && !isNaN(heading)) {
             statusBox.classList.add('compass-active');
 
-            // --- אלגוריתם החלקה (Low-pass Filter) למניעת הריצוד ---
             if (lastHeading === null) {
                 lastHeading = heading;
             } else {
-                // פותר את בעיית המעבר החד בין 360 מעלות ל-0 מעלות
                 let diff = heading - lastHeading;
                 if (diff > 180) diff -= 360;
                 if (diff < -180) diff += 360;
-                
-                // חישוב המיקום המיוצב החדש
                 lastHeading = (lastHeading + smoothingFactor * diff + 360) % 360;
             }
 
             let roundedHeading = Math.round(lastHeading);
-            statusBox.innerHTML = ` Compass המצפן מיוצב! כיוון נוכחי: ${roundedHeading}°`;
+            statusBox.innerHTML = `🧭 מפה מסתובבת חיה! כיוון מבט: ${roundedHeading}°`;
 
-            if (!selectedLat || !selectedLng) return;
-
-            const arrowElement = document.getElementById('liveCompassArrow');
-            if (arrowElement) {
-                arrowElement.style.transform = `translate(-50%, -50%) rotate(${roundedHeading}deg)`;
-            } else {
-                const compassIcon = L.divIcon({
-                    html: '<div id="liveCompassArrow" class="compass-arrow-icon" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate('+roundedHeading+'deg);"></div>',
-                    iconSize: [0, 0],
-                    className: 'custom-compass-icon'
-                });
-                if (compassMarker) map.removeLayer(compassMarker);
-                compassMarker = L.marker([selectedLat, selectedLng], { icon: compassIcon }).addTo(map);
+            // --- סיבוב פיזי אמיתי ורשמי של המפה בגוגל מפס ---
+            if (map) {
+                map.setHeading(roundedHeading);
             }
         }
     }
@@ -223,25 +204,42 @@
     function setNewLocation(lat, lng) {
         selectedLat = lat;
         selectedLng = lng;
-        if (marker) marker.setLatLng([lat, lng]);
-        else marker = L.marker([lat, lng]).addTo(map);
-        if (compassMarker) compassMarker.setLatLng([lat, lng]);
+        
+        if (marker) {
+            marker.setPosition({ lat: lat, lng: lng });
+        } else {
+            marker = new google.maps.Marker({
+                position: { lat: lat, lng: lng },
+                map: map
+            });
+        }
+        
         document.getElementById('timeSlider').disabled = false;
         drawSunPath();
         updateSimulation();
     }
 
     function drawSunPath() {
-        if (sunPathLine) map.removeLayer(sunPathLine);
+        if (sunPathPolyline) sunPathPolyline.setMap(null);
         let pathCoords = [];
         const radius = 0.0012; 
+
         for (let a = 0; a <= 180; a += 5) {
             let rad = a * Math.PI / 180;
             let pLat = selectedLat - (Math.sin(rad) * radius * 0.7); 
             let pLng = selectedLng + (Math.cos(rad) * radius);
-            pathCoords.push([pLat, pLng]);
+            pathCoords.push({ lat: pLat, lng: pLng });
         }
-        sunPathLine = L.polyline(pathCoords, { color: '#f59e0b', weight: 3, opacity: 0.5, dashArray: '6, 8' }).addTo(map);
+
+        sunPathPolyline = new google.maps.Polyline({
+            path: pathCoords,
+            geodesic: true,
+            strokeColor: '#f59e0b',
+            strokeOpacity: 0.5,
+            strokeWeight: 3,
+            icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 2 }, offset: '0', repeat: '10px' }],
+            map: map
+        });
     }
 
     function updateSimulation() {
@@ -277,21 +275,46 @@
             document.getElementById('safeLight').style.display = 'block';
         }
 
-        if(currentSunMarker) map.removeLayer(currentSunMarker);
-        if(sunRayLine) map.removeLayer(sunRayLine);
-        if(shadowLine) map.removeLayer(shadowLine);
+        if(currentSunMarker) currentSunMarker.setMap(null);
+        if(sunRayPolyline) sunRayPolyline.setMap(null);
+        if(shadowPolyline) shadowPolyline.setMap(null);
 
         const radius = 0.0012;
         let sunRad = (totalDayMinutes * 180) * Math.PI / 180; 
         let sunLat = selectedLat - (Math.sin(sunRad) * radius * 0.7);
         let sunLng = selectedLng + (Math.cos(sunRad) * radius);
 
-        currentSunMarker = L.circleMarker([sunLat, sunLng], { radius: 8, fillColor: isHeatStress ? '#dc2626' : '#ea580c', color: '#fff', weight: 2, fillOpacity: 1 }).addTo(map);
-        sunRayLine = L.polyline([[sunLat, sunLng], [selectedLat, selectedLng]], { color: isHeatStress ? '#ef4444' : '#eab308', weight: isHeatStress ? 4 : 3, opacity: 0.8, dashArray: '5, 10' }).addTo(map);
+        currentSunMarker = new google.maps.Marker({
+            position: { lat: sunLat, lng: sunLng },
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: isHeatStress ? '#dc2626' : '#ea580c',
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 2,
+                scale: 7
+            },
+            map: map
+        });
+
+        sunRayPolyline = new google.maps.Polyline({
+            path: [{ lat: sunLat, lng: sunLng }, { lat: selectedLat, lng: selectedLng }],
+            strokeColor: isHeatStress ? '#ef4444' : '#eab308',
+            strokeWeight: isHeatStress ? 4 : 3,
+            strokeOpacity: 0.8,
+            map: map
+        });
 
         let shadowLat = selectedLat + (Math.sin(sunRad) * shadowLength * 0.000015);
         let shadowLng = selectedLng - (Math.cos(sunRad) * shadowLength * 0.000015);
-        shadowLine = L.polyline([[selectedLat, selectedLng], [shadowLat, shadowLng]], { color: '#4b5563', weight: 5, opacity: 0.8 }).addTo(map);
+
+        shadowPolyline = new google.maps.Polyline({
+            path: [{ lat: selectedLat, lng: selectedLng }, { lat: shadowLat, lng: shadowLng }],
+            strokeColor: '#4b5563',
+            strokeWeight: 5,
+            strokeOpacity: 0.8,
+            map: map
+        });
 
         const sunNode = document.getElementById('sunNode');
         const xPercent = totalDayMinutes * 100;
