@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סימולטור שמש וצל - מותאם ל-Samsung S25</title>
+    <title>סימולטור שמש וצל - אוטומציה לנייד</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -18,10 +18,8 @@
         
         .layout { display: flex; gap: 15px; flex-direction: column; }
         .controls { width: 100%; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
-        .map-container { width: 100%; }
         
-        /* התאמת גובה המפה למסכים ארוכים כמו S25 */
-        #map { height: 45vh; min-height: 320px; max-height: 500px; border-radius: 8px; border: 1px solid #ccc; z-index: 1; width: 100%; }
+        #map { height: 450px; border-radius: 8px; border: 1px solid #ccc; z-index: 1; width: 100%; }
         
         .slider-group { margin: 15px 0; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
         .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #1e40af; }
@@ -29,8 +27,6 @@
         .slider-container { position: relative; margin-bottom: 10px; padding: 10px 0; }
         input[type="range"] { width: 100%; cursor: pointer; position: relative; z-index: 2; background: transparent; -webkit-appearance: none; margin: 0; }
         input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 10px; background: transparent; border-radius: 5px; }
-        
-        /* הגדלת הכפתור ללחיצה קלה עם האצבע על מסכי קוואד-HD */
         input[type="range"]::-webkit-slider-thumb { height: 26px; width: 26px; border-radius: 50%; background: #2563eb; cursor: pointer; -webkit-appearance: none; margin-top: -8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
         
         .heat-bar { position: absolute; top: 15px; left: 0; right: 0; height: 10px; border-radius: 5px; background: linear-gradient(to left, #eab308 0%, #eab308 41.6%, #ef4444 41.6%, #ef4444 83.3%, #eab308 83.3%, #eab308 100%); z-index: 1; pointer-events: none; }
@@ -51,11 +47,8 @@
         .sun-node { width: 22px; height: 22px; background: #f59e0b; border-radius: 50%; position: absolute; bottom: 0; right: 0; transform: translate(50%, 50%); box-shadow: 0 0 12px #f59e0b; transition: all 0.1s ease; z-index: 3; }
         .sky-label { position: absolute; bottom: 8px; font-size: 11px; color: #64748b; font-weight: bold; white-space: nowrap; }
 
-        .legend { margin-top: 10px; font-size: 13px; line-height: 1.5; }
-        .legend-item { display: inline-block; margin-left: 12px; margin-bottom: 4px; }
-        .legend-color { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: middle; margin-left: 4px; }
+        .compass-box { background: #f0fdfa; border: 1px solid #99f6e4; color: #0f766e; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; text-align: center; font-size: 14px; }
 
-        /* התאמה למסכים גדולים (מחשבים) כדי שהתצוגה לא תימרח לרוחב המלא */
         @media (min-width: 768px) {
             body { padding: 20px; }
             .container { padding: 25px; }
@@ -73,6 +66,9 @@
     <h2>סימולטור שמש, צל ועומסי חום</h2>
     <p class="sub-title">מזרח = ימינה | מערב = שמאלה | דרום = למטה | צפון = למעלה</p>
     
+    <!-- תיבת המצפן החי מהטלפון -->
+    <div id="compassStatus" class="compass-box">🧭 מחפש חיישן מצפן במכשיר...</div>
+
     <div class="layout">
         <div class="map-container">
             <div id="map"></div>
@@ -102,12 +98,6 @@
                 <p>📈 זווית גובה (אלכסון): <span class="highlight" id="sunElevation">-</span>°</p>
                 <p>🧭 כיוון השמש (אזימוט): <span class="highlight" id="sunAzimuth">-</span>°</p>
                 <p>📏 אורך הצל המוטל: <span class="highlight" style="color: #b91c1c;" id="shadowLength">-</span> מטרים</p>
-                
-                <div class="legend">
-                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #f59e0b; background: transparent; height: 8px;"></span>קשת: מסלול השמש בדרום</div>
-                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #ef4444; background: transparent; height: 8px;"></span>קו אדום: קרינת עומס חום</div>
-                    <div class="legend-item"><span class="legend-color" style="background: #4b5563;"></span>קו אפור: הצל המוטל</div>
-                </div>
             </div>
         </div>
     </div>
@@ -129,24 +119,112 @@
     let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
 
     window.onload = function() {
-        map = L.map('map').setView([32.8, 35.1], 11); 
+        // 1. אתחול מפה זמני
+        map = L.map('map').setView([32.0853, 34.7818], 9); 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
+        // האזנה לקליק ידני למקרה שהמשתמש רוצה לתקן מיקום
         map.on('click', function(e) {
-            selectedLat = e.latlng.lat;
-            selectedLng = e.latlng.lng;
-
-            if (marker) marker.setLatLng(e.latlng);
-            else marker = L.marker(e.latlng).addTo(map);
-
-            document.getElementById('timeSlider').disabled = false;
-            
-            drawSunPath();
-            updateSimulation();
+            setNewLocation(e.latlng.lat, e.latlng.lng);
         });
+
+        // 2. הפעלת אסטרטגיית אוטומציה לסמארטפונים - GPS מובנה מיד בטעינה
+        autoLoadGPS();
+
+        // 3. הפעלת המצפן החי של הטלפון
+        initCompass();
     };
+
+    // פונקציה לטעינה אוטומטית של ה-GPS
+    function autoLoadGPS() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    let lat = position.coords.latitude;
+                    let lng = position.coords.longitude;
+                    // קביעת המיקום ועדכון ה-Zoom קרוב לבניין
+                    map.setView([lat, lng], 17); 
+                    setNewLocation(lat, lng);
+                },
+                (error) => {
+                    console.log("GPS אוטומטי נחסם או נכשל, עובר לבחירה ידנית.");
+                },
+                { enableHighAccuracy: true, timeout: 7000 }
+            );
+        }
+    }
+
+    // פונקציית המצפן
+    function initCompass() {
+        const statusBox = document.getElementById('compassStatus');
+        
+        // בדיקה אם המכשיר תומך בחיישן כיוון
+        if (window.DeviceOrientationEvent) {
+            // טיפול מיוחד במכשירי iOS (אייפון) שדורשים אישור מפורש לחיישנים
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                statusBox.innerHTML = "🧭 לחץ כאן כדי לאשר את המצפן החי של המכשיר";
+                statusBox.style.cursor = "pointer";
+                statusBox.onclick = function() {
+                    DeviceOrientationEvent.requestPermission()
+                        .then(permissionState => {
+                            if (permissionState === 'granted') {
+                                window.addEventListener('deviceorientation', handleOrientation, true);
+                            } else {
+                                statusBox.innerHTML = "🧭 המצפן נחסם על ידי המשתמש";
+                            }
+                        });
+                };
+            } else {
+                // אנדרואיד (סמסונג S25) - מאזין ישירות בלי פופ-אפ אישור מיוחד
+                window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                // גיבוי למקרה שהאירוע המוחלט לא נתמך בדפדפן מסוים
+                window.addEventListener('deviceorientation', handleOrientation, true);
+            }
+        } else {
+            statusBox.innerHTML = "🧭 המכשיר אינו תומך בחיישן מצפן מובנה";
+        }
+    }
+
+    function handleOrientation(event) {
+        const statusBox = document.getElementById('compassStatus');
+        // קבלת המעלות מהצפון (0-360) - תלוי בסוג המכשיר/דפדפן
+        let heading = event.alpha;
+        if (event.webkitCompassHeading) {
+            heading = event.webkitCompassHeading; // לאייפונים
+        } else if (event.absolute === true || event.alpha !== null) {
+            heading = 360 - event.alpha; // לאנדרואיד
+        }
+
+        if (heading) {
+            let roundedHeading = Math.round(heading);
+            let directionText = "";
+            if (roundedHeading >= 337 || roundedHeading < 23) directionText = "צפון ⬆️";
+            else if (roundedHeading >= 23 && roundedHeading < 68) directionText = "צפון-מזרח ↗️";
+            else if (roundedHeading >= 68 && roundedHeading < 113) directionText = "מזרח ➡️";
+            else if (roundedHeading >= 113 && roundedHeading < 158) directionText = "דרום-מזרח ↘️";
+            else if (roundedHeading >= 158 && roundedHeading < 203) directionText = "דרום ⬇️";
+            else if (roundedHeading >= 203 && roundedHeading < 248) directionText = "דרום-מערב ↙️";
+            else if (roundedHeading >= 248 && roundedHeading < 293) directionText = "מערב ⬅️";
+            else if (roundedHeading >= 293 && roundedHeading < 337) directionText = "צפון-מערב ↖️";
+
+            statusBox.innerHTML = `🧭 המכשיר שלך פונה כרגע לכיוון: ${roundedHeading}° (${directionText})`;
+        }
+    }
+
+    function setNewLocation(lat, lng) {
+        selectedLat = lat;
+        selectedLng = lng;
+
+        if (marker) marker.setLatLng([lat, lng]);
+        else marker = L.marker([lat, lng]).addTo(map);
+
+        document.getElementById('timeSlider').disabled = false;
+        
+        drawSunPath();
+        updateSimulation();
+    }
 
     function drawSunPath() {
         if (sunPathLine) map.removeLayer(sunPathLine);
@@ -245,5 +323,3 @@
 </script>
 </body>
 </html>
-
-https://meir-tools.github.io/sun/ver.0.0.html
