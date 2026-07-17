@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סימולטור שמש וצל - שבשבת מצפן חיה</title>
+    <title>סימולטור שמש וצל - מצפן יציב ללא ריצוד</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -22,7 +22,7 @@
         
         #map { height: 450px; width: 100%; z-index: 1; }
         
-        /* עיצוב רכיב החץ הויזואלי המסתובב */
+        /* עיצוב חץ המצפן - הוספת מעבר חלק למניעת ריצודים */
         .compass-arrow-icon {
             width: 0;
             height: 0;
@@ -30,7 +30,8 @@
             border-right: 12px solid transparent;
             border-bottom: 30px solid #2563eb;
             filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.3));
-            transition: transform 0.1s ease-out;
+            /* מעבר חלק של 0.3 שניות שמונע לחלוטין את הרעידות */
+            transition: transform 0.3s ease-out; 
         }
 
         .slider-group { margin: 15px 0; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
@@ -76,10 +77,10 @@
 <body>
 
 <div class="container">
-    <h2>סימולטור שמש, צל ושבשבת מצפן חיה</h2>
+    <h2>סימולטור שמש, צל ומצפן יציב</h2>
     <p class="sub-title">מזרח = ימינה | מערב = שמאלה | דרום = למטה | צפון = למעלה</p>
     
-    <div id="compassStatus" class="compass-box" onclick="activateCompassManually()">⚡ לחץ כאן כדי להפעיל את חץ המצפן החי על המפה</div>
+    <div id="compassStatus" class="compass-box" onclick="activateCompassManually()">⚡ לחץ כאן כדי להפעיל את חץ המצפן (גרסה מיוצבת)</div>
 
     <div class="layout">
         <div class="map-container">
@@ -110,12 +111,6 @@
                 <p>📈 זווית גובה (אלכסון): <span class="highlight" id="sunElevation">-</span>°</p>
                 <p>🧭 כיוון השמש (אזימוט): <span class="highlight" id="sunAzimuth">-</span>°</p>
                 <p>📏 אורך הצל המוטל: <span class="highlight" style="color: #b91c1c;" id="shadowLength">-</span> מטרים</p>
-                
-                <div class="legend">
-                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #f59e0b; background: transparent; height: 8px;"></span>קשת: מסלול השמש בדרום</div>
-                    <div class="legend-item"><span class="legend-color" style="background: #2563eb; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 12px solid #2563eb;"></span>חץ כחול: כיוון הסמארטפון שלך בשטח</div>
-                    <div class="legend-item"><span class="legend-color" style="background: #4b5563;"></span>קו אפור: הצל המוטל</div>
-                </div>
             </div>
         </div>
     </div>
@@ -135,7 +130,11 @@
     let selectedLat = null;
     let selectedLng = null;
     let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
-    let compassMarker = null; // שכבת חץ המצפן על המפה
+    let compassMarker = null; 
+    
+    // משתנים למנגנון ייצוב המצפן
+    let lastHeading = null;
+    const smoothingFactor = 0.15; // ככל שהמספר קטן יותר, הסיבוב חלק ויציב יותר (מוריד רעידות)
 
     window.onload = function() {
         map = L.map('map').setView([32.0853, 34.7818], 9); 
@@ -169,7 +168,7 @@
     }
 
     function activateCompassManually() {
-        document.getElementById('compassStatus').innerHTML = "🔄 מסנכרן חיישנים... סובב את הטלפון";
+        document.getElementById('compassStatus').innerHTML = "🔄 מסנכרן חיישנים ומייצב...";
         window.addEventListener('deviceorientationabsolute', handleOrientation, true);
         window.addEventListener('deviceorientation', handleOrientation, true);
     }
@@ -187,18 +186,29 @@
 
         if (heading !== null && !isNaN(heading)) {
             statusBox.classList.add('compass-active');
-            let roundedHeading = Math.round(heading);
-            statusBox.innerHTML = `🧭 חץ המצפן מסתובב איתך! כיוון נוכחי: ${roundedHeading}°`;
 
-            // --- עדכון חץ הכיוון ישירות על גבי המפה ---
+            // --- אלגוריתם החלקה (Low-pass Filter) למניעת הריצוד ---
+            if (lastHeading === null) {
+                lastHeading = heading;
+            } else {
+                // פותר את בעיית המעבר החד בין 360 מעלות ל-0 מעלות
+                let diff = heading - lastHeading;
+                if (diff > 180) diff -= 360;
+                if (diff < -180) diff += 360;
+                
+                // חישוב המיקום המיוצב החדש
+                lastHeading = (lastHeading + smoothingFactor * diff + 360) % 360;
+            }
+
+            let roundedHeading = Math.round(lastHeading);
+            statusBox.innerHTML = ` Compass המצפן מיוצב! כיוון נוכחי: ${roundedHeading}°`;
+
             if (!selectedLat || !selectedLng) return;
 
-            // אם האלמנט הויזואלי של החץ כבר קיים, נעדכן לו רק את הזווית ב-CSS
             const arrowElement = document.getElementById('liveCompassArrow');
             if (arrowElement) {
                 arrowElement.style.transform = `translate(-50%, -50%) rotate(${roundedHeading}deg)`;
             } else {
-                // יצירת האלמנט פעם ראשונה על המפה במרכז המיקום שלך
                 const compassIcon = L.divIcon({
                     html: '<div id="liveCompassArrow" class="compass-arrow-icon" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate('+roundedHeading+'deg);"></div>',
                     iconSize: [0, 0],
@@ -213,13 +223,9 @@
     function setNewLocation(lat, lng) {
         selectedLat = lat;
         selectedLng = lng;
-        
         if (marker) marker.setLatLng([lat, lng]);
         else marker = L.marker([lat, lng]).addTo(map);
-        
-        // אם המצפן עובד, נרענן את מיקום החץ
         if (compassMarker) compassMarker.setLatLng([lat, lng]);
-
         document.getElementById('timeSlider').disabled = false;
         drawSunPath();
         updateSimulation();
