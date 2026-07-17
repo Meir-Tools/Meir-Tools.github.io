@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סימולטור שמש וצל מדעי - גרסה מדויקת</title>
+    <title>סימולטור שמש וצל מדעי - גרסה סופית ויציבה</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -16,10 +16,14 @@
         h2 { margin-top: 0; color: #1e3a8a; text-align: center; font-size: 22px; }
         .sub-title { text-align: center; color: #666; font-size: 13px; margin-top: -5px; margin-bottom: 15px; }
         
-        /* כפתור ה-GPS המדויק החדש */
         .gps-btn-container { display: flex; justify-content: center; margin-bottom: 15px; }
         .gps-trigger-btn { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.15); width: 100%; max-width: 350px; justify-content: center; }
-        .gps-trigger-btn:active { background: #1d4ed8; }
+        
+        /* אזור כפתורי המצפן הידני */
+        .compass-controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 8px; }
+        .compass-btn { background: #16a34a; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .compass-btn:active { background: #15803d; }
+        .compass-text { font-weight: bold; color: #166534; font-size: 14px; min-width: 150px; text-align: center; }
 
         .layout { display: flex; gap: 15px; flex-direction: column; }
         .controls { width: 100%; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
@@ -27,6 +31,17 @@
         
         #map { height: 450px; width: 100%; z-index: 1; }
         
+        /* עיצוב החץ הכחול של כיוון המבט שלך */
+        .compass-arrow-icon {
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 32px solid #0284c7;
+            filter: drop-shadow(0px 2px 5px rgba(0,0,0,0.4));
+            transition: transform 0.2s ease-out;
+        }
+
         .slider-group { margin: 15px 0; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
         .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #1e40af; }
         
@@ -70,9 +85,15 @@
     <h2>סימולטור שמש וצל אסטרונומי</h2>
     <p class="sub-title">מזרח = ימינה | מערב = שמאלה | דרום = למטה | צפון = למעלה</p>
 
-    <!-- כפתור דגימת GPS מדויקת וכפויה -->
     <div class="gps-btn-container">
         <button class="gps-trigger-btn" onclick="forceHighAccuracyGPS()">🎯 זהה מיקום מדויק (GPS לווייני)</button>
+    </div>
+
+    <!-- שבשבת כיוון ידנית מיוצבת למניעת ריצודים -->
+    <div class="compass-controls">
+        <button class="compass-btn" onclick="rotateCompass(-15)">⬅️ סובב שמאלה</button>
+        <span id="compassHeadingText" class="compass-text">🧭 כיוון המבט שלך: 0° (צפון)</span>
+        <button class="compass-btn" onclick="rotateCompass(15)">ימינה ➡️</button>
     </div>
 
     <div class="layout">
@@ -107,8 +128,8 @@
                 
                 <div class="legend">
                     <div class="legend-item"><span class="legend-color" style="border: 2px dashed #f59e0b; background: transparent; height: 10px;"></span>קשת כתומה: מסלול השמש בדרום (למטה)</div>
-                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #eab308; background: transparent; height: 10px;"></span>קו צהוב מקווקו: כיוון הגעת קרני השמש</div>
-                    <div class="legend-item"><span class="legend-color" style="background: #4b5563;"></span>קו אפור מוצק: הצל (הפוך מכיוון השמש)</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #0284c7; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 12px solid #0284c7;"></span>חץ כחול: לאן שאתה מסתכל בשטח</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #4b5563;"></span>קו אפור מוצק: הצל המוטל</div>
                 </div>
             </div>
         </div>
@@ -129,6 +150,8 @@
     let selectedLat = null;
     let selectedLng = null;
     let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
+    let compassMarker = null; 
+    let currentUserHeading = 0; // זווית החץ הידני
 
     window.onload = function() {
         map = L.map('map', { zoomControl: true }).setView([32.0853, 34.7818], 9); 
@@ -140,11 +163,44 @@
             setNewLocation(e.latlng.lat, e.latlng.lng);
         });
 
-        // הפעלת דגימה ראשונית אוטומטית בטעינה
         forceHighAccuracyGPS();
     };
 
-    // פונקציית הליבה המשודרגת לדיוק מקסימלי בשטח
+    function rotateCompass(degrees) {
+        currentUserHeading = (currentUserHeading + degrees + 360) % 360;
+        
+        let directionText = "";
+        if (currentUserHeading >= 337 || currentUserHeading < 23) directionText = "צפון ⬆️";
+        else if (currentUserHeading >= 23 && currentUserHeading < 68) directionText = "צפון-מזרח ↗️";
+        else if (currentUserHeading >= 68 && currentUserHeading < 113) directionText = "מזרח ➡️";
+        else if (currentUserHeading >= 113 && currentUserHeading < 158) directionText = "דרום-מזרח ↘️";
+        else if (currentUserHeading >= 158 && currentUserHeading < 203) directionText = "דרום ⬇️";
+        else if (currentUserHeading >= 203 && currentUserHeading < 248) directionText = "דרום-מערב ↙️";
+        else if (currentUserHeading >= 248 && currentUserHeading < 293) directionText = "מערב ⬅️";
+        else if (currentUserHeading >= 293 && currentUserHeading < 337) directionText = "צפון-מערב ↖️";
+
+        document.getElementById('compassHeadingText').innerHTML = `🧭 כיוון המבט שלך: ${currentUserHeading}° (${directionText})`;
+        
+        updateCompassArrowOnMap();
+    }
+
+    function updateCompassArrowOnMap() {
+        if (!selectedLat || !selectedLng) return;
+
+        const arrowElement = document.getElementById('liveCompassArrow');
+        if (arrowElement) {
+            arrowElement.style.transform = `translate(-50%, -50%) rotate(${currentUserHeading}deg)`;
+        } else {
+            const compassIcon = L.divIcon({
+                html: '<div id="liveCompassArrow" class="compass-arrow-icon" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate('+currentUserHeading+'deg);"></div>',
+                iconSize: [0, 0],
+                className: 'custom-compass-icon'
+            });
+            if (compassMarker) map.removeLayer(compassMarker);
+            compassMarker = L.marker([selectedLat, selectedLng], { icon: compassIcon }).addTo(map);
+        }
+    }
+
     function forceHighAccuracyGPS() {
         const btn = document.querySelector('.gps-trigger-btn');
         if (btn) btn.innerHTML = "⏳ מנווט ומתקן מיקום לווייני...";
@@ -154,22 +210,14 @@
                 (position) => {
                     let lat = position.coords.latitude;
                     let lng = position.coords.longitude;
-                    
-                    // זום מקסימלי 18 לרמת הגג של הבניין
                     map.setView([lat, lng], 18); 
                     setNewLocation(lat, lng);
-                    
                     if (btn) btn.innerHTML = "🎯 זהה מיקום מדויק (GPS לווייני)";
                 },
                 (error) => { 
-                    console.log("GPS נכשל או נחסם");
                     if (btn) btn.innerHTML = "❌ הזיהוי נכשל. הקלק ידנית במפה";
                 },
-                { 
-                    enableHighAccuracy: true, // שימוש ברכיב לווייני פיזי בלבד
-                    timeout: 10000,           // זמן המתנה ארוך יותר לנעילת לוויינים
-                    maximumAge: 0             // מחיקת מיקומים ישנים מהזיכרון
-                }
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         }
     }
@@ -181,6 +229,8 @@
         if (marker) marker.setLatLng([lat, lng]);
         else marker = L.marker([lat, lng]).addTo(map);
         
+        updateCompassArrowOnMap();
+
         document.getElementById('timeSlider').disabled = false;
         drawSunPath();
         updateSimulation();
