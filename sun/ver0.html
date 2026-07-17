@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סימולטור שמש וצל - מצפן חי אמיתי</title>
+    <title>סימולטור שמש וצל - מותאם ל-Samsung S25</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -16,35 +16,21 @@
         h2 { margin-top: 0; color: #1e3a8a; text-align: center; font-size: 22px; }
         .sub-title { text-align: center; color: #666; font-size: 13px; margin-top: -5px; margin-bottom: 15px; }
         
-        .action-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; align-items: center; }
-        .trigger-btn { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.15); width: 100%; max-width: 350px; text-align: center; }
-        .trigger-btn:active { background: #1d4ed8; }
-        .compass-btn { background: #c2410c; }
-        .compass-btn.active { background: #16a34a; }
-
         .layout { display: flex; gap: 15px; flex-direction: column; }
         .controls { width: 100%; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
-        .map-container { width: 100%; border-radius: 8px; border: 1px solid #ccc; overflow: hidden; }
+        .map-container { width: 100%; }
         
-        #map { height: 450px; width: 100%; z-index: 1; }
+        /* התאמת גובה המפה למסכים ארוכים כמו S25 */
+        #map { height: 45vh; min-height: 320px; max-height: 500px; border-radius: 8px; border: 1px solid #ccc; z-index: 1; width: 100%; }
         
-        /* חץ המצפן המקורי - תנועה רכה וחלקה ללא ריצודים */
-        .compass-arrow-icon {
-            width: 0;
-            height: 0;
-            border-left: 12px solid transparent;
-            border-right: 12px solid transparent;
-            border-bottom: 32px solid #0284c7;
-            filter: drop-shadow(0px 2px 5px rgba(0,0,0,0.4));
-            transition: transform 0.2s ease-out;
-        }
-
         .slider-group { margin: 15px 0; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
         .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #1e40af; }
         
         .slider-container { position: relative; margin-bottom: 10px; padding: 10px 0; }
         input[type="range"] { width: 100%; cursor: pointer; position: relative; z-index: 2; background: transparent; -webkit-appearance: none; margin: 0; }
         input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 10px; background: transparent; border-radius: 5px; }
+        
+        /* הגדלת הכפתור ללחיצה קלה עם האצבע על מסכי קוואד-HD */
         input[type="range"]::-webkit-slider-thumb { height: 26px; width: 26px; border-radius: 50%; background: #2563eb; cursor: pointer; -webkit-appearance: none; margin-top: -8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
         
         .heat-bar { position: absolute; top: 15px; left: 0; right: 0; height: 10px; border-radius: 5px; background: linear-gradient(to left, #eab308 0%, #eab308 41.6%, #ef4444 41.6%, #ef4444 83.3%, #eab308 83.3%, #eab308 100%); z-index: 1; pointer-events: none; }
@@ -65,25 +51,28 @@
         .sun-node { width: 22px; height: 22px; background: #f59e0b; border-radius: 50%; position: absolute; bottom: 0; right: 0; transform: translate(50%, 50%); box-shadow: 0 0 12px #f59e0b; transition: all 0.1s ease; z-index: 3; }
         .sky-label { position: absolute; bottom: 8px; font-size: 11px; color: #64748b; font-weight: bold; white-space: nowrap; }
 
+        .legend { margin-top: 10px; font-size: 13px; line-height: 1.5; }
+        .legend-item { display: inline-block; margin-left: 12px; margin-bottom: 4px; }
+        .legend-color { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: middle; margin-left: 4px; }
+
+        /* התאמה למסכים גדולים (מחשבים) כדי שהתצוגה לא תימרח לרוחב המלא */
         @media (min-width: 768px) {
+            body { padding: 20px; }
+            .container { padding: 25px; }
+            h2 { font-size: 26px; }
             .layout { flex-direction: row; }
             .controls { flex: 1; max-width: 350px; }
             .map-container { flex: 2; }
+            #map { height: 480px; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>סימולטור שמש וצל אסטרונומי</h2>
+    <h2>סימולטור שמש, צל ועומסי חום</h2>
     <p class="sub-title">מזרח = ימינה | מערב = שמאלה | דרום = למטה | צפון = למעלה</p>
-
-    <div class="action-container">
-        <button class="trigger-btn" onclick="forceHighAccuracyGPS()">🎯 עדכן מיקום לווייני מדויק</button>
-        <!-- כפתור הפעלה ישיר לחיישן המצפן הפיזי באנדרואיד -->
-        <button id="compassBtn" class="trigger-btn compass-btn" onclick="activateLiveCompass()">🧭 הפעל מצפן חי ומסלול שמש</button>
-    </div>
-
+    
     <div class="layout">
         <div class="map-container">
             <div id="map"></div>
@@ -113,6 +102,12 @@
                 <p>📈 זווית גובה (אלכסון): <span class="highlight" id="sunElevation">-</span>°</p>
                 <p>🧭 כיוון השמש (אזימוט): <span class="highlight" id="sunAzimuth">-</span>°</p>
                 <p>📏 אורך הצל המוטל: <span class="highlight" style="color: #b91c1c;" id="shadowLength">-</span> מטרים</p>
+                
+                <div class="legend">
+                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #f59e0b; background: transparent; height: 8px;"></span>קשת: מסלול השמש בדרום</div>
+                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #ef4444; background: transparent; height: 8px;"></span>קו אדום: קרינת עומס חום</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #4b5563;"></span>קו אפור: הצל המוטל</div>
+                </div>
             </div>
         </div>
     </div>
@@ -132,130 +127,58 @@
     let selectedLat = null;
     let selectedLng = null;
     let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
-    let compassMarker = null; 
-    let lastHeading = null;
-    const smoothingFactor = 0.15; // החלקת רעידות חיישן
 
     window.onload = function() {
-        map = L.map('map', { zoomControl: true }).setView([32.0853, 34.7818], 9); 
+        map = L.map('map').setView([32.8, 35.1], 11); 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
         map.on('click', function(e) {
-            setNewLocation(e.latlng.lat, e.latlng.lng);
-        });
+            selectedLat = e.latlng.lat;
+            selectedLng = e.latlng.lng;
 
-        forceHighAccuracyGPS();
-    };
+            if (marker) marker.setLatLng(e.latlng);
+            else marker = L.marker(e.latlng).addTo(map);
 
-    // הפעלה כפויה מבוססת מחווה אנושית של המצפן האמיתי ב-S25
-    function activateLiveCompass() {
-        const btn = document.getElementById('compassBtn');
-        btn.innerHTML = "🔄 מסתנכרן עם החיישן של המכשיר...";
-        
-        // רישום האזנה ישירה לחיישן המצפן המוחלט של אנדרואיד
-        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-        window.addEventListener('deviceorientation', handleOrientation, true);
-    }
-
-    function handleOrientation(event) {
-        const btn = document.getElementById('compassBtn');
-        let heading = null;
-
-        if (event.webkitCompassHeading) {
-            heading = event.webkitCompassHeading;
-        } else if (event.absolute === true || event.alpha !== null) {
-            heading = 360 - event.alpha; 
-            if(event.beta > 45) heading = (heading + 180) % 360; // תיקון מצב אחיזה
-        }
-
-        if (heading !== null && !isNaN(heading)) {
-            btn.classList.add('active');
+            document.getElementById('timeSlider').disabled = false;
             
-            // פילטר החלקה למניעת קפיצות וריצודים של החץ
-            if (lastHeading === null) {
-                lastHeading = heading;
-            } else {
-                let diff = heading - lastHeading;
-                if (diff > 180) diff -= 360;
-                if (diff < -180) diff += 360;
-                lastHeading = (lastHeading + smoothingFactor * diff + 360) % 360;
-            }
-
-            let roundedHeading = Math.round(lastHeading);
-            btn.innerHTML = `✅ מצפן חי פעיל: ${roundedHeading}°`;
-
-            if (!selectedLat || !selectedLng) return;
-
-            // עדכון וסיבוב החץ הכחול הפיזי ב-Live על גבי המפה
-            const arrowElement = document.getElementById('liveCompassArrow');
-            if (arrowElement) {
-                arrowElement.style.transform = `translate(-50%, -50%) rotate(${roundedHeading}deg)`;
-            } else {
-                const compassIcon = L.divIcon({
-                    html: '<div id="liveCompassArrow" class="compass-arrow-icon" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate('+roundedHeading+'deg);"></div>',
-                    iconSize: [0, 0],
-                    className: 'custom-compass-icon'
-                });
-                if (compassMarker) map.removeLayer(compassMarker);
-                compassMarker = L.marker([selectedLat, selectedLng], { icon: compassIcon }).addTo(map);
-            }
-        }
-    }
-
-    function forceHighAccuracyGPS() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    let lat = position.coords.latitude;
-                    let lng = position.coords.longitude;
-                    map.setView([lat, lng], 18); 
-                    setNewLocation(lat, lng);
-                },
-                (error) => { console.log("GPS נכשל"); },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        }
-    }
-
-    function setNewLocation(lat, lng) {
-        selectedLat = lat;
-        selectedLng = lng;
-        
-        if (marker) marker.setLatLng([lat, lng]);
-        else marker = L.marker([lat, lng]).addTo(map);
-        
-        // הצמדת החץ למיקום המעודכן
-        if (compassMarker) compassMarker.setLatLng([lat, lng]);
-
-        document.getElementById('timeSlider').disabled = false;
-        drawSunPath();
-        updateSimulation();
-    }
+            drawSunPath();
+            updateSimulation();
+        });
+    };
 
     function drawSunPath() {
         if (sunPathLine) map.removeLayer(sunPathLine);
+
         let pathCoords = [];
-        const radius = 0.0012; 
+        const radius = 0.0015; 
+
         for (let a = 0; a <= 180; a += 5) {
             let rad = a * Math.PI / 180;
             let pLat = selectedLat - (Math.sin(rad) * radius * 0.7); 
             let pLng = selectedLng + (Math.cos(rad) * radius);
             pathCoords.push([pLat, pLng]);
         }
-        sunPathLine = L.polyline(pathCoords, { color: '#f59e0b', weight: 3, opacity: 0.5, dashArray: '6, 8' }).addTo(map);
+
+        sunPathLine = L.polyline(pathCoords, {
+            color: '#f59e0b', weight: 3, opacity: 0.5, dashArray: '6, 8'
+        }).addTo(map);
     }
 
     function updateSimulation() {
         if (!selectedLat || !selectedLng) return;
+
         const sliderVal = parseFloat(document.getElementById('timeSlider').value);
         const hours = Math.floor(sliderVal);
         const minutes = Math.floor((sliderVal % 1) * 60);
+        
         const simDate = new Date();
         simDate.setHours(hours, minutes, 0, 0);
 
-        document.getElementById('timeDisplay').innerText = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        document.getElementById('timeDisplay').innerText = 
+            `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
         const height = parseFloat(document.getElementById('obstacleHeight').value);
 
         const sunPosition = SunCalc.getPosition(simDate, selectedLat, selectedLng);
@@ -272,6 +195,7 @@
         document.getElementById('shadowLength').innerText = isFinite(shadowLength) ? shadowLength.toFixed(2) : "אין שמש (חשוך)";
 
         const isHeatStress = (sliderVal >= 11 && sliderVal <= 16);
+        
         if (isHeatStress) {
             document.getElementById('heatWarning').style.display = 'block';
             document.getElementById('safeLight').style.display = 'none';
@@ -284,22 +208,37 @@
         if(sunRayLine) map.removeLayer(sunRayLine);
         if(shadowLine) map.removeLayer(shadowLine);
 
-        const radius = 0.0012;
+        const radius = 0.0015;
         let sunRad = (totalDayMinutes * 180) * Math.PI / 180; 
+        
         let sunLat = selectedLat - (Math.sin(sunRad) * radius * 0.7);
         let sunLng = selectedLng + (Math.cos(sunRad) * radius);
 
-        currentSunMarker = L.circleMarker([sunLat, sunLng], { radius: 8, fillColor: isHeatStress ? '#dc2626' : '#ea580c', color: '#fff', weight: 2, fillOpacity: 1 }).addTo(map);
-        sunRayLine = L.polyline([[sunLat, sunLng], [selectedLat, selectedLng]], { color: isHeatStress ? '#ef4444' : '#eab308', weight: isHeatStress ? 4 : 3, opacity: 0.8, dashArray: '5, 10' }).addTo(map);
+        currentSunMarker = L.circleMarker([sunLat, sunLng], {
+            radius: 8, fillColor: isHeatStress ? '#dc2626' : '#ea580c', color: '#fff', weight: 2, fillOpacity: 1
+        }).addTo(map);
+
+        sunRayLine = L.polyline([[sunLat, sunLng], [selectedLat, selectedLng]], {
+            color: isHeatStress ? '#ef4444' : '#eab308',
+            weight: isHeatStress ? 4 : 3,
+            opacity: 0.8,
+            dashArray: '5, 10'
+        }).addTo(map);
 
         let shadowLat = selectedLat + (Math.sin(sunRad) * shadowLength * 0.000015);
         let shadowLng = selectedLng - (Math.cos(sunRad) * shadowLength * 0.000015);
-        shadowLine = L.polyline([[selectedLat, selectedLng], [shadowLat, shadowLng]], { color: '#4b5563', weight: 5, opacity: 0.8 }).addTo(map);
+
+        shadowLine = L.polyline([[selectedLat, selectedLng], [shadowLat, shadowLng]], {
+            color: '#4b5563', weight: 5, opacity: 0.8
+        }).addTo(map);
 
         const sunNode = document.getElementById('sunNode');
         const xPercent = totalDayMinutes * 100;
         const yPercent = (elevationDeg / 90) * 100;
+
         sunNode.style.background = isHeatStress ? '#dc2626' : '#f59e0b';
+        sunNode.style.boxShadow = isHeatStress ? '0 0 10px #dc2626' : '0 0 10px #f59e0b';
+
         sunNode.style.right = `${xPercent}%`;
         sunNode.style.bottom = `calc(${yPercent}% - 11px)`;
     }
