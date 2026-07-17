@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>סימולטור שמש וצל מדעי - גרסה מלאה</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        body { font-family: system-ui, sans-serif; background: #f4f4f9; padding: 20px; color: #333; margin: 0; }
+        .container { max-width: 1050px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: #1e3a8a; text-align: center; }
+        
+        .layout { display: flex; gap: 20px; flex-wrap: wrap; }
+        .controls { flex: 1; min-width: 320px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
+        .map-container { flex: 2; min-width: 350px; }
+        
+        #map { height: 450px; border-radius: 8px; border: 1px solid #ccc; }
+        
+        .slider-group { margin: 20px 0; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
+        .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 8px; color: #1e40af; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        input[type="number"] { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; }
+        
+        .result-box { background: white; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 15px; }
+        .highlight { font-weight: bold; color: #1d4ed8; }
+        
+        .sky-chart { margin-top: 20px; border-top: 2px dashed #cbd5e1; padding-top: 20px; }
+        .sky-track { height: 120px; background: linear-gradient(to top, #bae6fd, #e0f2fe); border-radius: 8px; position: relative; border-bottom: 4px solid #e2e8f0; overflow: hidden; }
+        .sun-node { width: 20px; height: 20px; background: #f59e0b; border-radius: 50%; position: absolute; bottom: 0; right: 0; transform: translate(50%, 50%); box-shadow: 0 0 12px #f59e0b; transition: all 0.1s ease; }
+        .sky-label { position: absolute; bottom: 8px; font-size: 11px; color: #64748b; font-weight: bold; }
+
+        .legend { margin-top: 10px; font-size: 13px; line-height: 1.5; }
+        .legend-item { display: inline-block; margin-left: 15px; margin-bottom: 5px; }
+        .legend-color { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: middle; margin-left: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>סימולטור שמש וצל מדעי מתוקן (גרסה מלאה)</h2>
+    <p style="text-align: center; color: #666; font-size: 14px; margin-top: -10px;">מזרח = ימינה | מערב = שמאלה | דרום = למטה | צפון = למעלה</p>
+    
+    <div class="layout">
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+        
+        <div class="controls">
+            <div class="input-group">
+                <label>גובה הבניין שממול (במטרים):</label>
+                <input type="number" id="obstacleHeight" value="12" step="0.5" oninput="updateSimulation()">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>שעת הסימולציה:</span>
+                    <span id="timeDisplay">12:00</span>
+                </div>
+                <input type="range" id="timeSlider" min="6" max="18" step="0.25" value="12" oninput="updateSimulation()" disabled>
+            </div>
+
+            <div class="result-box">
+                <p>📈 זווית גובה (אלכסון השמש): <span class="highlight" id="sunElevation">-</span>°</p>
+                <p>🧭 כיוון השמש (אזימוט): <span class="highlight" id="sunAzimuth">-</span>°</p>
+                <p>📏 אורך הצל המוטל: <span class="highlight" style="color: #b91c1c;" id="shadowLength">-</span> מטרים</p>
+                
+                <div class="legend">
+                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #f59e0b; background: transparent; height: 10px;"></span>קשת כתומה: מסלול השמש בדרום (למטה)</div>
+                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #eab308; background: transparent; height: 10px;"></span>קו צהוב מקווקו: כיוון קרני השמש</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #4b5563;"></span>קו אפור מוצק: הצל (הפוך מכיוון השמש)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container sky-chart">
+    <h3 style="margin: 0 0 10px 0; color: #334155; font-size: 15px;">📊 מבט מהצד: גובה השמש בשמיים לאורך היום (זווית הגבהה)</h3>
+    <div class="sky-track" id="skyTrack">
+        <div class="sun-node" id="sunNode"></div>
+        <div class="sky-label" style="right: 10px;">מזרח (זריחה בבוקר)</div>
+        <div class="sky-label" style="left: 50%; transform: translateX(-50%);">דרום (שיא הגובה בצהריים)</div>
+        <div class="sky-label" style="left: 10px;">מערב (שקיעה בערב)</div>
+    </div>
+</div>
+
+<script>
+    let selectedLat = null;
+    let selectedLng = null;
+    let map, marker;
+    let sunPathLine = null; 
+    let currentSunMarker = null; 
+    let sunRayLine = null; // הקו הצהוב המקווקו שהוחזר
+    let shadowLine = null; 
+
+    window.onload = function() {
+        map = L.map('map').setView([32.8, 35.1], 12); 
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        map.on('click', function(e) {
+            selectedLat = e.latlng.lat;
+            selectedLng = e.latlng.lng;
+
+            if (marker) marker.setLatLng(e.latlng);
+            else marker = L.marker(e.latlng).addTo(map);
+
+            document.getElementById('timeSlider').disabled = false;
+            
+            drawSunPath();
+            updateSimulation();
+        });
+    };
+
+    function drawSunPath() {
+        if (sunPathLine) map.removeLayer(sunPathLine);
+
+        let pathCoords = [];
+        const radius = 0.0015; 
+
+        for (let a = 0; a <= 180; a += 5) {
+            let rad = a * Math.PI / 180;
+            let pLat = selectedLat - (Math.sin(rad) * radius * 0.7); 
+            let pLng = selectedLng + (Math.cos(rad) * radius);
+            pathCoords.push([pLat, pLng]);
+        }
+
+        sunPathLine = L.polyline(pathCoords, {
+            color: '#f59e0b', weight: 3, opacity: 0.5, dashArray: '6, 8'
+        }).addTo(map);
+    }
+
+    function updateSimulation() {
+        if (!selectedLat || !selectedLng) return;
+
+        const sliderVal = parseFloat(document.getElementById('timeSlider').value);
+        const hours = Math.floor(sliderVal);
+        const minutes = Math.floor((sliderVal % 1) * 60);
+        
+        const simDate = new Date();
+        simDate.setHours(hours, minutes, 0, 0);
+
+        document.getElementById('timeDisplay').innerText = 
+            `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+        const height = parseFloat(document.getElementById('obstacleHeight').value);
+
+        const sunPosition = SunCalc.getPosition(simDate, selectedLat, selectedLng);
+        let elevationDeg = sunPosition.altitude * (180 / Math.PI);
+        if (elevationDeg < 0) elevationDeg = 0;
+
+        let totalDayMinutes = (sliderVal - 6) / (18 - 6); 
+        let compassAzDeg = 90 + (totalDayMinutes * 180); 
+
+        let shadowLength = elevationDeg > 0 ? height / Math.tan(sunPosition.altitude) : Infinity;
+
+        document.getElementById('sunElevation').innerText = elevationDeg.toFixed(1);
+        document.getElementById('sunAzimuth').innerText = compassAzDeg.toFixed(1);
+        document.getElementById('shadowLength').innerText = isFinite(shadowLength) ? shadowLength.toFixed(2) : "אין שמש (חשוך)";
+
+        // ניקוי אלמנטים קודמים
+        if(currentSunMarker) map.removeLayer(currentSunMarker);
+        if(sunRayLine) map.removeLayer(sunRayLine);
+        if(shadowLine) map.removeLayer(shadowLine);
+
+        const radius = 0.0015;
+        let sunRad = (totalDayMinutes * 180) * Math.PI / 180; 
+        
+        let sunLat = selectedLat - (Math.sin(sunRad) * radius * 0.7);
+        let sunLng = selectedLng + (Math.cos(sunRad) * radius);
+
+        // 1. ציור נקודת השמש
+        currentSunMarker = L.circleMarker([sunLat, sunLng], {
+            radius: 8, fillColor: '#ea580c', color: '#fff', weight: 2, fillOpacity: 1
+        }).addTo(map);
+
+        // 2. ציור הקו הצהוב המקווקו (קרני השמש אל הבניין)
+        sunRayLine = L.polyline([[sunLat, sunLng], [selectedLat, selectedLng]], {
+            color: '#eab308',
+            weight: 3,
+            opacity: 0.8,
+            dashArray: '5, 10'
+        }).addTo(map);
+
+        // 3. ציור קו הצל האפור (לצד ההפוך)
+        let shadowLat = selectedLat + (Math.sin(sunRad) * shadowLength * 0.000015);
+        let shadowLng = selectedLng - (Math.cos(sunRad) * shadowLength * 0.000015);
+
+        shadowLine = L.polyline([[selectedLat, selectedLng], [shadowLat, shadowLng]], {
+            color: '#4b5563', weight: 5, opacity: 0.8
+        }).addTo(map);
+
+        // 4. עדכון גרף השמיים בתחתית
+        const sunNode = document.getElementById('sunNode');
+        const xPercent = totalDayMinutes * 100;
+        const yPercent = (elevationDeg / 90) * 100;
+
+        sunNode.style.right = `${xPercent}%`;
+        sunNode.style.bottom = `calc(${yPercent}% - 10px)`;
+    }
+</script>
+</body>
+</html>
