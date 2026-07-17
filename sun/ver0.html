@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סימולטור שמש וצל מדעי - גרסה סופית ויציבה</title>
+    <title>סימולטור שמש וצל - מצפן חי אמיתי</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -16,14 +16,11 @@
         h2 { margin-top: 0; color: #1e3a8a; text-align: center; font-size: 22px; }
         .sub-title { text-align: center; color: #666; font-size: 13px; margin-top: -5px; margin-bottom: 15px; }
         
-        .gps-btn-container { display: flex; justify-content: center; margin-bottom: 15px; }
-        .gps-trigger-btn { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.15); width: 100%; max-width: 350px; justify-content: center; }
-        
-        /* אזור כפתורי המצפן הידני */
-        .compass-controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 15px; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 8px; }
-        .compass-btn { background: #16a34a; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
-        .compass-btn:active { background: #15803d; }
-        .compass-text { font-weight: bold; color: #166534; font-size: 14px; min-width: 150px; text-align: center; }
+        .action-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; align-items: center; }
+        .trigger-btn { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.15); width: 100%; max-width: 350px; text-align: center; }
+        .trigger-btn:active { background: #1d4ed8; }
+        .compass-btn { background: #c2410c; }
+        .compass-btn.active { background: #16a34a; }
 
         .layout { display: flex; gap: 15px; flex-direction: column; }
         .controls { width: 100%; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
@@ -31,7 +28,7 @@
         
         #map { height: 450px; width: 100%; z-index: 1; }
         
-        /* עיצוב החץ הכחול של כיוון המבט שלך */
+        /* חץ המצפן המקורי - תנועה רכה וחלקה ללא ריצודים */
         .compass-arrow-icon {
             width: 0;
             height: 0;
@@ -68,10 +65,6 @@
         .sun-node { width: 22px; height: 22px; background: #f59e0b; border-radius: 50%; position: absolute; bottom: 0; right: 0; transform: translate(50%, 50%); box-shadow: 0 0 12px #f59e0b; transition: all 0.1s ease; z-index: 3; }
         .sky-label { position: absolute; bottom: 8px; font-size: 11px; color: #64748b; font-weight: bold; white-space: nowrap; }
 
-        .legend { margin-top: 10px; font-size: 13px; line-height: 1.5; }
-        .legend-item { display: inline-block; margin-left: 12px; margin-bottom: 4px; }
-        .legend-color { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: middle; margin-left: 4px; }
-
         @media (min-width: 768px) {
             .layout { flex-direction: row; }
             .controls { flex: 1; max-width: 350px; }
@@ -85,15 +78,10 @@
     <h2>סימולטור שמש וצל אסטרונומי</h2>
     <p class="sub-title">מזרח = ימינה | מערב = שמאלה | דרום = למטה | צפון = למעלה</p>
 
-    <div class="gps-btn-container">
-        <button class="gps-trigger-btn" onclick="forceHighAccuracyGPS()">🎯 זהה מיקום מדויק (GPS לווייני)</button>
-    </div>
-
-    <!-- שבשבת כיוון ידנית מיוצבת למניעת ריצודים -->
-    <div class="compass-controls">
-        <button class="compass-btn" onclick="rotateCompass(-15)">⬅️ סובב שמאלה</button>
-        <span id="compassHeadingText" class="compass-text">🧭 כיוון המבט שלך: 0° (צפון)</span>
-        <button class="compass-btn" onclick="rotateCompass(15)">ימינה ➡️</button>
+    <div class="action-container">
+        <button class="trigger-btn" onclick="forceHighAccuracyGPS()">🎯 עדכן מיקום לווייני מדויק</button>
+        <!-- כפתור הפעלה ישיר לחיישן המצפן הפיזי באנדרואיד -->
+        <button id="compassBtn" class="trigger-btn compass-btn" onclick="activateLiveCompass()">🧭 הפעל מצפן חי ומסלול שמש</button>
     </div>
 
     <div class="layout">
@@ -125,12 +113,6 @@
                 <p>📈 זווית גובה (אלכסון): <span class="highlight" id="sunElevation">-</span>°</p>
                 <p>🧭 כיוון השמש (אזימוט): <span class="highlight" id="sunAzimuth">-</span>°</p>
                 <p>📏 אורך הצל המוטל: <span class="highlight" style="color: #b91c1c;" id="shadowLength">-</span> מטרים</p>
-                
-                <div class="legend">
-                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #f59e0b; background: transparent; height: 10px;"></span>קשת כתומה: מסלול השמש בדרום (למטה)</div>
-                    <div class="legend-item"><span class="legend-color" style="background: #0284c7; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 12px solid #0284c7;"></span>חץ כחול: לאן שאתה מסתכל בשטח</div>
-                    <div class="legend-item"><span class="legend-color" style="background: #4b5563;"></span>קו אפור מוצק: הצל המוטל</div>
-                </div>
             </div>
         </div>
     </div>
@@ -151,7 +133,8 @@
     let selectedLng = null;
     let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
     let compassMarker = null; 
-    let currentUserHeading = 0; // זווית החץ הידני
+    let lastHeading = null;
+    const smoothingFactor = 0.15; // החלקת רעידות חיישן
 
     window.onload = function() {
         map = L.map('map', { zoomControl: true }).setView([32.0853, 34.7818], 9); 
@@ -166,45 +149,62 @@
         forceHighAccuracyGPS();
     };
 
-    function rotateCompass(degrees) {
-        currentUserHeading = (currentUserHeading + degrees + 360) % 360;
+    // הפעלה כפויה מבוססת מחווה אנושית של המצפן האמיתי ב-S25
+    function activateLiveCompass() {
+        const btn = document.getElementById('compassBtn');
+        btn.innerHTML = "🔄 מסתנכרן עם החיישן של המכשיר...";
         
-        let directionText = "";
-        if (currentUserHeading >= 337 || currentUserHeading < 23) directionText = "צפון ⬆️";
-        else if (currentUserHeading >= 23 && currentUserHeading < 68) directionText = "צפון-מזרח ↗️";
-        else if (currentUserHeading >= 68 && currentUserHeading < 113) directionText = "מזרח ➡️";
-        else if (currentUserHeading >= 113 && currentUserHeading < 158) directionText = "דרום-מזרח ↘️";
-        else if (currentUserHeading >= 158 && currentUserHeading < 203) directionText = "דרום ⬇️";
-        else if (currentUserHeading >= 203 && currentUserHeading < 248) directionText = "דרום-מערב ↙️";
-        else if (currentUserHeading >= 248 && currentUserHeading < 293) directionText = "מערב ⬅️";
-        else if (currentUserHeading >= 293 && currentUserHeading < 337) directionText = "צפון-מערב ↖️";
-
-        document.getElementById('compassHeadingText').innerHTML = `🧭 כיוון המבט שלך: ${currentUserHeading}° (${directionText})`;
-        
-        updateCompassArrowOnMap();
+        // רישום האזנה ישירה לחיישן המצפן המוחלט של אנדרואיד
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
     }
 
-    function updateCompassArrowOnMap() {
-        if (!selectedLat || !selectedLng) return;
+    function handleOrientation(event) {
+        const btn = document.getElementById('compassBtn');
+        let heading = null;
 
-        const arrowElement = document.getElementById('liveCompassArrow');
-        if (arrowElement) {
-            arrowElement.style.transform = `translate(-50%, -50%) rotate(${currentUserHeading}deg)`;
-        } else {
-            const compassIcon = L.divIcon({
-                html: '<div id="liveCompassArrow" class="compass-arrow-icon" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate('+currentUserHeading+'deg);"></div>',
-                iconSize: [0, 0],
-                className: 'custom-compass-icon'
-            });
-            if (compassMarker) map.removeLayer(compassMarker);
-            compassMarker = L.marker([selectedLat, selectedLng], { icon: compassIcon }).addTo(map);
+        if (event.webkitCompassHeading) {
+            heading = event.webkitCompassHeading;
+        } else if (event.absolute === true || event.alpha !== null) {
+            heading = 360 - event.alpha; 
+            if(event.beta > 45) heading = (heading + 180) % 360; // תיקון מצב אחיזה
+        }
+
+        if (heading !== null && !isNaN(heading)) {
+            btn.classList.add('active');
+            
+            // פילטר החלקה למניעת קפיצות וריצודים של החץ
+            if (lastHeading === null) {
+                lastHeading = heading;
+            } else {
+                let diff = heading - lastHeading;
+                if (diff > 180) diff -= 360;
+                if (diff < -180) diff += 360;
+                lastHeading = (lastHeading + smoothingFactor * diff + 360) % 360;
+            }
+
+            let roundedHeading = Math.round(lastHeading);
+            btn.innerHTML = `✅ מצפן חי פעיל: ${roundedHeading}°`;
+
+            if (!selectedLat || !selectedLng) return;
+
+            // עדכון וסיבוב החץ הכחול הפיזי ב-Live על גבי המפה
+            const arrowElement = document.getElementById('liveCompassArrow');
+            if (arrowElement) {
+                arrowElement.style.transform = `translate(-50%, -50%) rotate(${roundedHeading}deg)`;
+            } else {
+                const compassIcon = L.divIcon({
+                    html: '<div id="liveCompassArrow" class="compass-arrow-icon" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate('+roundedHeading+'deg);"></div>',
+                    iconSize: [0, 0],
+                    className: 'custom-compass-icon'
+                });
+                if (compassMarker) map.removeLayer(compassMarker);
+                compassMarker = L.marker([selectedLat, selectedLng], { icon: compassIcon }).addTo(map);
+            }
         }
     }
 
     function forceHighAccuracyGPS() {
-        const btn = document.querySelector('.gps-trigger-btn');
-        if (btn) btn.innerHTML = "⏳ מנווט ומתקן מיקום לווייני...";
-
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
@@ -212,11 +212,8 @@
                     let lng = position.coords.longitude;
                     map.setView([lat, lng], 18); 
                     setNewLocation(lat, lng);
-                    if (btn) btn.innerHTML = "🎯 זהה מיקום מדויק (GPS לווייני)";
                 },
-                (error) => { 
-                    if (btn) btn.innerHTML = "❌ הזיהוי נכשל. הקלק ידנית במפה";
-                },
+                (error) => { console.log("GPS נכשל"); },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         }
@@ -229,7 +226,8 @@
         if (marker) marker.setLatLng([lat, lng]);
         else marker = L.marker([lat, lng]).addTo(map);
         
-        updateCompassArrowOnMap();
+        // הצמדת החץ למיקום המעודכן
+        if (compassMarker) compassMarker.setLatLng([lat, lng]);
 
         document.getElementById('timeSlider').disabled = false;
         drawSunPath();
