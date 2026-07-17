@@ -24,8 +24,13 @@
         #map { height: 45vh; min-height: 320px; max-height: 500px; border-radius: 8px; border: 1px solid #ccc; z-index: 1; width: 100%; }
         
         .slider-group { margin: 15px 0; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
-        .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #1e40af; }
+        .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #1e40af; align-items: center; }
         
+        /* עיצוב כפתור הנגן האוטומטי */
+        .play-btn { background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 20px; font-size: 14px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: background 0.2s; }
+        .play-btn:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
+        .play-btn:active { background: #1d4ed8; }
+
         .slider-container { position: relative; margin-bottom: 10px; padding: 10px 0; }
         input[type="range"] { width: 100%; cursor: pointer; position: relative; z-index: 2; background: transparent; -webkit-appearance: none; margin: 0; }
         input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 10px; background: transparent; border-radius: 5px; }
@@ -86,8 +91,12 @@
 
             <div class="slider-group">
                 <div class="slider-label">
-                    <span>שעת הסימולציה:</span>
-                    <span id="timeDisplay">12:00</span>
+                    <div>
+                        <span>שעה:</span>
+                        <span id="timeDisplay">12:00</span>
+                    </div>
+                    <!-- כפתור הנגן האוטומטי החדש -->
+                    <button id="playButton" class="play-btn" onclick="togglePlay()" disabled>▶ הפעל</button>
                 </div>
                 <div class="slider-container">
                     <input type="range" id="timeSlider" min="6" max="18" step="0.25" value="12" oninput="updateSimulation()" disabled>
@@ -127,6 +136,10 @@
     let selectedLat = null;
     let selectedLng = null;
     let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
+    
+    // משתנים לשליטה באנימציה האוטומטית
+    let playInterval = null;
+    const animationSpeed = 150; // מהירות הניגון במילישניות (כל כמה זמן הזמן קופץ)
 
     window.onload = function() {
         map = L.map('map').setView([32.8, 35.1], 11); 
@@ -141,12 +154,47 @@
             if (marker) marker.setLatLng(e.latlng);
             else marker = L.marker(e.latlng).addTo(map);
 
+            // שחרור הסליידר וכפתור ההפעלה לאחר בחירת מיקום
             document.getElementById('timeSlider').disabled = false;
+            document.getElementById('playButton').disabled = false;
             
             drawSunPath();
             updateSimulation();
         });
     };
+
+    // פונקציית הפעלה ועצירה של ה"גיף" האוטומטי
+    function togglePlay() {
+        const btn = document.getElementById('playButton');
+        const slider = document.getElementById('timeSlider');
+        
+        if (playInterval) {
+            // אם זה רץ - נעצור
+            clearInterval(playInterval);
+            playInterval = null;
+            btn.innerText = "▶ הפעל";
+        } else {
+            // אם זה עצור - נתחיל להריץ
+            btn.innerText = "⏸ עuserצור";
+            playInterval = setInterval(function() {
+                let currentVal = parseFloat(slider.value);
+                let maxVal = parseFloat(slider.max);
+                let minVal = parseFloat(slider.min);
+                let step = parseFloat(slider.step);
+                
+                // התקדמות בצעד אחד קדימה
+                currentVal += step;
+                
+                // אם הגענו לסוף היום (18:00), נחזור חזרה לתחילת היום (06:00) כמו לולאת GIF
+                if (currentVal > maxVal) {
+                    currentVal = minVal;
+                }
+                
+                slider.value = currentVal;
+                updateSimulation();
+            }, animationSpeed);
+        }
+    }
 
     function drawSunPath() {
         if (sunPathLine) map.removeLayer(sunPathLine);
