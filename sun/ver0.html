@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סימולטור שמש וצל מדעי - גרסה יציבה</title>
+    <title>סימולטור שמש וצל מדעי - גרסה מדויקת</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -16,6 +16,11 @@
         h2 { margin-top: 0; color: #1e3a8a; text-align: center; font-size: 22px; }
         .sub-title { text-align: center; color: #666; font-size: 13px; margin-top: -5px; margin-bottom: 15px; }
         
+        /* כפתור ה-GPS המדויק החדש */
+        .gps-btn-container { display: flex; justify-content: center; margin-bottom: 15px; }
+        .gps-trigger-btn { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.15); width: 100%; max-width: 350px; justify-content: center; }
+        .gps-trigger-btn:active { background: #1d4ed8; }
+
         .layout { display: flex; gap: 15px; flex-direction: column; }
         .controls { width: 100%; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
         .map-container { width: 100%; border-radius: 8px; border: 1px solid #ccc; overflow: hidden; }
@@ -64,6 +69,11 @@
 <div class="container">
     <h2>סימולטור שמש וצל אסטרונומי</h2>
     <p class="sub-title">מזרח = ימינה | מערב = שמאלה | דרום = למטה | צפון = למעלה</p>
+
+    <!-- כפתור דגימת GPS מדויקת וכפויה -->
+    <div class="gps-btn-container">
+        <button class="gps-trigger-btn" onclick="forceHighAccuracyGPS()">🎯 זהה מיקום מדויק (GPS לווייני)</button>
+    </div>
 
     <div class="layout">
         <div class="map-container">
@@ -121,7 +131,6 @@
     let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
 
     window.onload = function() {
-        // אתחול המפה עם מרכז כללי בישראל
         map = L.map('map', { zoomControl: true }).setView([32.0853, 34.7818], 9); 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
@@ -131,20 +140,36 @@
             setNewLocation(e.latlng.lat, e.latlng.lng);
         });
 
-        autoLoadGPS();
+        // הפעלת דגימה ראשונית אוטומטית בטעינה
+        forceHighAccuracyGPS();
     };
 
-    function autoLoadGPS() {
+    // פונקציית הליבה המשודרגת לדיוק מקסימלי בשטח
+    function forceHighAccuracyGPS() {
+        const btn = document.querySelector('.gps-trigger-btn');
+        if (btn) btn.innerHTML = "⏳ מנווט ומתקן מיקום לווייני...";
+
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     let lat = position.coords.latitude;
                     let lng = position.coords.longitude;
+                    
+                    // זום מקסימלי 18 לרמת הגג של הבניין
                     map.setView([lat, lng], 18); 
                     setNewLocation(lat, lng);
+                    
+                    if (btn) btn.innerHTML = "🎯 זהה מיקום מדויק (GPS לווייני)";
                 },
-                (error) => { console.log("GPS נכשל, מחכה לבחירה ידנית במפה"); },
-                { enableHighAccuracy: true, timeout: 7000 }
+                (error) => { 
+                    console.log("GPS נכשל או נחסם");
+                    if (btn) btn.innerHTML = "❌ הזיהוי נכשל. הקלק ידנית במפה";
+                },
+                { 
+                    enableHighAccuracy: true, // שימוש ברכיב לווייני פיזי בלבד
+                    timeout: 10000,           // זמן המתנה ארוך יותר לנעילת לוויינים
+                    maximumAge: 0             // מחיקת מיקומים ישנים מהזיכרון
+                }
             );
         }
     }
