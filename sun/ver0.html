@@ -18,19 +18,35 @@
         
         .layout { display: flex; gap: 15px; flex-direction: column; }
         .controls { width: 100%; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
-        .map-container { width: 100%; }
+        .map-container { width: 100%; position: relative; }
         
         /* התאמת גובה המפה למסכים ארוכים כמו S25 */
         #map { height: 45vh; min-height: 320px; max-height: 500px; border-radius: 8px; border: 1px solid #ccc; z-index: 1; width: 100%; }
         
-        .slider-group { margin: 15px 0; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
-        .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #1e40af; align-items: center; }
-        
-        /* עיצוב כפתור הנגן האוטומטי */
-        .play-btn { background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 20px; font-size: 14px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: background 0.2s; }
-        .play-btn:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
-        .play-btn:active { background: #1d4ed8; }
+        /* כפתור GPS צף ומעוצב לטלפונים */
+        .gps-btn {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            z-index: 1000;
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .gps-btn:active { background: #1d4ed8; }
 
+        .slider-group { margin: 15px 0; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
+        .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #1e40af; }
+        
         .slider-container { position: relative; margin-bottom: 10px; padding: 10px 0; }
         input[type="range"] { width: 100%; cursor: pointer; position: relative; z-index: 2; background: transparent; -webkit-appearance: none; margin: 0; }
         input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 10px; background: transparent; border-radius: 5px; }
@@ -81,6 +97,8 @@
     <div class="layout">
         <div class="map-container">
             <div id="map"></div>
+            <!-- כפתור מיקום נוכחי -->
+            <button class="gps-btn" onclick="getLocation()">📍 מיקום נוכחי</button>
         </div>
         
         <div class="controls">
@@ -91,12 +109,8 @@
 
             <div class="slider-group">
                 <div class="slider-label">
-                    <div>
-                        <span>שעה:</span>
-                        <span id="timeDisplay">12:00</span>
-                    </div>
-                    <!-- כפתור הנגן האוטומטי החדש -->
-                    <button id="playButton" class="play-btn" onclick="togglePlay()" disabled>▶ הפעל</button>
+                    <span>שעת הסימולציה:</span>
+                    <span id="timeDisplay">12:00</span>
                 </div>
                 <div class="slider-container">
                     <input type="range" id="timeSlider" min="6" max="18" step="0.25" value="12" oninput="updateSimulation()" disabled>
@@ -136,63 +150,69 @@
     let selectedLat = null;
     let selectedLng = null;
     let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
-    
-    // משתנים לשליטה באנימציה האוטומטית
-    let playInterval = null;
-    const animationSpeed = 150; // מהירות הניגון במילישניות (כל כמה זמן הזמן קופץ)
 
     window.onload = function() {
-        map = L.map('map').setView([32.8, 35.1], 11); 
+        // מיקום ברירת מחדל ראשוני (מרכז הארץ)
+        map = L.map('map').setView([32.0853, 34.7818], 14); 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
+        // הפעלה אוטומטית של ה-GPS מייד עם עקשיית הדף
+        getLocation();
+
         map.on('click', function(e) {
-            selectedLat = e.latlng.lat;
-            selectedLng = e.latlng.lng;
-
-            if (marker) marker.setLatLng(e.latlng);
-            else marker = L.marker(e.latlng).addTo(map);
-
-            // שחרור הסליידר וכפתור ההפעלה לאחר בחירת מיקום
-            document.getElementById('timeSlider').disabled = false;
-            document.getElementById('playButton').disabled = false;
-            
-            drawSunPath();
-            updateSimulation();
+            handleLocationSelection(e.latlng.lat, e.latlng.lng);
         });
     };
 
-    // פונקציית הפעלה ועצירה של ה"גיף" האוטומטי
-    function togglePlay() {
-        const btn = document.getElementById('playButton');
-        const slider = document.getElementById('timeSlider');
-        
-        if (playInterval) {
-            // אם זה רץ - נעצור
-            clearInterval(playInterval);
-            playInterval = null;
-            btn.innerText = "▶ הפעל";
+    // פונקציה המטפלת בעדכון המיקום החדש שנבחר (בלחיצה או ב-GPS)
+    function handleLocationSelection(lat, lng) {
+        selectedLat = lat;
+        selectedLng = lng;
+
+        if (marker) {
+            marker.setLatLng([lat, lng]);
         } else {
-            // אם זה עצור - נתחיל להריץ
-            btn.innerText = "⏸ עuserצור";
-            playInterval = setInterval(function() {
-                let currentVal = parseFloat(slider.value);
-                let maxVal = parseFloat(slider.max);
-                let minVal = parseFloat(slider.min);
-                let step = parseFloat(slider.step);
-                
-                // התקדמות בצעד אחד קדימה
-                currentVal += step;
-                
-                // אם הגענו לסוף היום (18:00), נחזור חזרה לתחילת היום (06:00) כמו לולאת GIF
-                if (currentVal > maxVal) {
-                    currentVal = minVal;
-                }
-                
-                slider.value = currentVal;
-                updateSimulation();
-            }, animationSpeed);
+            marker = L.marker([lat, lng]).addTo(map);
+        }
+
+        document.getElementById('timeSlider').disabled = false;
+        
+        drawSunPath();
+        updateSimulation();
+    }
+
+    // פונקציית ה-GPS המקורית של הטלפון
+    function getLocation() {
+        if (navigator.geolocation) {
+            // האופציות האלו מבטיחות דיוק גבוה וזמן תגובה מהיר (טוב לטלפונים)
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            };
+
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    // ממרכז את המפה למיקום ה-GPS שחזר ובזום קרוב
+                    map.setView([lat, lng], 17); 
+                    handleLocationSelection(lat, lng);
+                }, 
+                function(error) {
+                    // במקרה של שגיאה (למשל המשתמש חסם את הגישה ל-GPS), נציג הודעה חברותית
+                    console.warn('Geolocation error: ' + error.message);
+                    if(error.code === 1) {
+                        alert("כדי להשתמש במיקום אוטומטי, יש לאשר גישת GPS בדפדפן, או ללחוץ ידנית על המפה.");
+                    }
+                }, 
+                options
+            );
+        } else {
+            alert("הדפדפן שלך לא תומך בזיהוי מיקום אוטומטי.");
         }
     }
 
