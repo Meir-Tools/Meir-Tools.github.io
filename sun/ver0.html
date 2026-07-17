@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סימולטור שמש וצל - תיקון מצפן אנדרואיד</title>
+    <title>סימולטור שמש וצל - מצפן ויזואלי על המפה</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -47,10 +47,13 @@
         .sun-node { width: 22px; height: 22px; background: #f59e0b; border-radius: 50%; position: absolute; bottom: 0; right: 0; transform: translate(50%, 50%); box-shadow: 0 0 12px #f59e0b; transition: all 0.1s ease; z-index: 3; }
         .sky-label { position: absolute; bottom: 8px; font-size: 11px; color: #64748b; font-weight: bold; white-space: nowrap; }
 
-        /* עיצוב תיבת המצפן המשודרגת */
-        .compass-box { background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; text-align: center; font-size: 14px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background 0.2s; }
-        .compass-box:active { background: #ffedd5; }
+        /* עיצוב תיבת המצפן */
+        .compass-box { background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; text-align: center; font-size: 14px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .compass-active { background: #f0fdf4; border-color: #99f6e4; color: #0f766e; }
+
+        .legend { margin-top: 10px; font-size: 13px; line-height: 1.5; }
+        .legend-item { display: inline-block; margin-left: 12px; margin-bottom: 4px; }
+        .legend-color { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: middle; margin-left: 4px; }
 
         @media (min-width: 768px) {
             body { padding: 20px; }
@@ -66,11 +69,10 @@
 <body>
 
 <div class="container">
-    <h2>סימולטור שמש, צל ועומסי חום</h2>
+    <h2>סימולטור שמש, צל ומצפן חי על המפה</h2>
     <p class="sub-title">מזרח = ימינה | מערב = שמאלה | דרום = למטה | צפון = למעלה</p>
     
-    <!-- תיבת המצפן שמשמשת כעת גם ככפתור הפעלה כפוי -->
-    <div id="compassStatus" class="compass-box" onclick="activateCompassManually()">⚡ המצפן ממתין לאישור. לחץ כאן כדי להפעיל אותו פיזית</div>
+    <div id="compassStatus" class="compass-box" onclick="activateCompassManually()">⚡ המצפן ממתין לאישור. לחץ כאן כדי להפעיל ולהציג אותו על המפה</div>
 
     <div class="layout">
         <div class="map-container">
@@ -101,6 +103,12 @@
                 <p>📈 זווית גובה (אלכסון): <span class="highlight" id="sunElevation">-</span>°</p>
                 <p>🧭 כיוון השמש (אזימוט): <span class="highlight" id="sunAzimuth">-</span>°</p>
                 <p>📏 אורך הצל המוטל: <span class="highlight" style="color: #b91c1c;" id="shadowLength">-</span> מטרים</p>
+                
+                <div class="legend">
+                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #f59e0b; background: transparent; height: 8px;"></span>קשת: מסלול השמש בדרום</div>
+                    <div class="legend-item"><span class="legend-color" style="background: rgba(37, 99, 235, 0.2); border: 1px solid #2563eb;"></span>חרוט כחול: כיוון מבט הטלפון שלך</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #4b5563;"></span>קו אפור: הצל המוטל</div>
+                </div>
             </div>
         </div>
     </div>
@@ -120,7 +128,7 @@
     let selectedLat = null;
     let selectedLng = null;
     let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
-    let compassActive = false;
+    let compassCone = null; // שכבת חרוט המצפן על המפה
 
     window.onload = function() {
         map = L.map('map').setView([32.0853, 34.7818], 9); 
@@ -134,7 +142,6 @@
 
         autoLoadGPS();
         
-        // מנסה להפעיל אוטומטית באנדרואיד
         window.addEventListener('deviceorientationabsolute', handleOrientation, true);
         window.addEventListener('deviceorientation', handleOrientation, true);
     };
@@ -145,32 +152,22 @@
                 (position) => {
                     let lat = position.coords.latitude;
                     let lng = position.coords.longitude;
-                    map.setView([lat, lng], 17); 
+                    map.setView([lat, lng], 18); // זום חזק וממוקד לבניין
                     setNewLocation(lat, lng);
                 },
-                (error) => {
-                    console.log("GPS אוטומטי נשלל, בחר ידנית קליק על המפה.");
-                },
+                (error) => { console.log("GPS אוטומטי נשלל"); },
                 { enableHighAccuracy: true, timeout: 7000 }
             );
         }
     }
 
-    // הפעלה כפויה בלחיצה - פותר את בעיית חסימת האינטראקציה בכרום/סמסונג
     function activateCompassManually() {
-        const statusBox = document.getElementById('compassStatus');
-        
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            // טיפול לאייפון למקרה הצורך
-            DeviceOrientationEvent.requestPermission()
-                .then(permissionState => {
-                    if (permissionState === 'granted') {
-                        window.addEventListener('deviceorientation', handleOrientation, true);
-                    }
-                });
+            DeviceOrientationEvent.requestPermission().then(state => {
+                if (state === 'granted') window.addEventListener('deviceorientation', handleOrientation, true);
+            });
         } else {
-            // הרצה חוזרת כפויה של האזנה באנדרואיד בעקבות קליק
-            statusBox.innerHTML = "🔄 מפעיל חיישנים פנימיים...";
+            document.getElementById('compassStatus').innerHTML = "🔄 מפעיל חיישנים ומצפן על המפה...";
             window.addEventListener('deviceorientationabsolute', handleOrientation, true);
             window.addEventListener('deviceorientation', handleOrientation, true);
         }
@@ -178,36 +175,50 @@
 
     function handleOrientation(event) {
         const statusBox = document.getElementById('compassStatus');
-        
-        // קריאת זווית המצפן מהחיישן הפיזי של סמסונג
         let heading = null;
+
         if (event.webkitCompassHeading) {
             heading = event.webkitCompassHeading;
         } else if (event.absolute === true || event.alpha !== null) {
-            // החישוב המדויק לאנדרואיד כשהמכשיר מונח אופקית
             heading = 360 - event.alpha; 
-            if(event.beta > 45) { 
-                // תיקון זווית במידה והטלפון מוחזק אנכית מול הפנים ולא שוכב
-                heading = (heading + 180) % 360;
-            }
+            if(event.beta > 45) heading = (heading + 180) % 360; // תיקון מצב אחיזה אנכי
         }
 
         if (heading !== null && !isNaN(heading)) {
-            compassActive = true;
             statusBox.classList.add('compass-active');
-            
             let roundedHeading = Math.round(heading);
-            let directionText = "";
-            if (roundedHeading >= 337 || roundedHeading < 23) directionText = "צפון ⬆️";
-            else if (roundedHeading >= 23 && roundedHeading < 68) directionText = "צפון-מזרח ↗️";
-            else if (roundedHeading >= 68 && roundedHeading < 113) directionText = "מזרח ➡️";
-            else if (roundedHeading >= 113 && roundedHeading < 158) directionText = "דרום-מזרח ↘️";
-            else if (roundedHeading >= 158 && roundedHeading < 203) directionText = "דרום ⬇️";
-            else if (roundedHeading >= 203 && roundedHeading < 248) directionText = "דרום-מערב ↙️";
-            else if (roundedHeading >= 248 && roundedHeading < 293) directionText = "מערב ⬅️";
-            else if (roundedHeading >= 293 && roundedHeading < 337) directionText = "צפון-מערב ↖️";
+            statusBox.innerHTML = `🧭 מצפן מפה פעיל! כיוון מכשיר: ${roundedHeading}°`;
 
-            statusBox.innerHTML = `🧭 מצפן חי פעיל: המכשיר פונה ל-${roundedHeading}° (${directionText})`;
+            // --- ציור ועדכון חרוט המצפן על המפה ---
+            if (!selectedLat || !selectedLng) return;
+
+            if (compassCone) map.removeLayer(compassCone);
+
+            // המרת כיוון המצפן למערכת המפה הגיאומטרית
+            let centerAngleRad = (90 - roundedHeading) * (Math.PI / 180);
+            
+            // יצירת חרוט ראייה בזווית של 40 מעלות (20 לכל צד)
+            let leftAngleRad = centerAngleRad + (20 * Math.PI / 180);
+            let rightAngleRad = centerAngleRad - (20 * Math.PI / 180);
+            
+            const coneRadius = 0.0004; // אורך חרוט המצפן (כ-40 מטרים על המפה)
+
+            let leftLat = selectedLat + (Math.sin(leftAngleRad) * coneRadius);
+            let leftLng = selectedLng + (Math.cos(leftAngleRad) * coneRadius);
+            let rightLat = selectedLat + (Math.sin(rightAngleRad) * coneRadius);
+            let rightLng = selectedLng + (Math.cos(rightAngleRad) * coneRadius);
+
+            // ציור המצפן כפוליגון (משולש חרוטי שיוצא מהסמן של הבית)
+            compassCone = L.polygon([
+                [selectedLat, selectedLng],
+                [leftLat, leftLng],
+                [rightLat, rightLng]
+            ], {
+                color: '#2563eb',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.25,
+                weight: 1.5
+            }).addTo(map);
         }
     }
 
