@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סימולטור שמש וצל - מצפן ויזואלי על המפה</title>
+    <title>סימולטור שמש וצל - מפה מסתובבת עם המצפן</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -11,7 +11,7 @@
 
     <style>
         * { box-sizing: border-box; }
-        body { font-family: system-ui, sans-serif; background: #f4f4f9; padding: 8px; color: #333; margin: 0; }
+        body { font-family: system-ui, sans-serif; background: #f4f4f9; padding: 8px; color: #333; margin: 0; overflow-x: hidden; }
         .container { max-width: 1050px; margin: 0 auto; background: white; padding: 16px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; }
         h2 { margin-top: 0; color: #1e3a8a; text-align: center; font-size: 22px; }
         .sub-title { text-align: center; color: #666; font-size: 13px; margin-top: -5px; margin-bottom: 15px; }
@@ -19,8 +19,17 @@
         .layout { display: flex; gap: 15px; flex-direction: column; }
         .controls { width: 100%; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; }
         
-        #map { height: 450px; border-radius: 8px; border: 1px solid #ccc; z-index: 1; width: 100%; }
+        /* קונטיינר קשיח למניעת בריחת שוליים בזמן סיבוב המפה */
+        .map-container { width: 100%; overflow: hidden; border-radius: 8px; border: 1px solid #ccc; position: relative; }
         
+        /* כאן קורה הקסם: המפה עצמה מסתובבת סביב המרכז שלה */
+        #map { height: 450px; width: 100%; z-index: 1; transition: transform 0.1s ease-out; }
+        
+        /* הוספת כוונת קבועה במרכז המסך כדי שתדע לאן אתה מסתכל */
+        .map-crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; border: 2px solid #2563eb; border-radius: 50%; z-index: 10; pointer-events: none; background: rgba(37, 99, 235, 0.1); }
+        .map-crosshair::before { content: ''; position: absolute; top: 50%; left: -5px; right: -5px; height: 2px; background: #2563eb; transform: translateY(-50%); }
+        .map-crosshair::after { content: ''; position: absolute; left: 50%; top: -5px; bottom: -5px; width: 2px; background: #2563eb; transform: translateX(-50%); }
+
         .slider-group { margin: 15px 0; background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px solid #bfdbfe; }
         .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 12px; color: #1e40af; }
         
@@ -47,7 +56,6 @@
         .sun-node { width: 22px; height: 22px; background: #f59e0b; border-radius: 50%; position: absolute; bottom: 0; right: 0; transform: translate(50%, 50%); box-shadow: 0 0 12px #f59e0b; transition: all 0.1s ease; z-index: 3; }
         .sky-label { position: absolute; bottom: 8px; font-size: 11px; color: #64748b; font-weight: bold; white-space: nowrap; }
 
-        /* עיצוב תיבת המצפן */
         .compass-box { background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-weight: bold; text-align: center; font-size: 14px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .compass-active { background: #f0fdf4; border-color: #99f6e4; color: #0f766e; }
 
@@ -69,13 +77,15 @@
 <body>
 
 <div class="container">
-    <h2>סימולטור שמש, צל ומצפן חי על המפה</h2>
-    <p class="sub-title">מזרח = ימינה | מערב = שמאלה | דרום = למטה | צפון = למעלה</p>
+    <h2>סימולטור שמש וצל - מפה מסתובבת חיה</h2>
+    <p class="sub-title">הסתובב עם המכשיר בשטח - המפה תתיישר אוטומטית לפי כיוון המבט שלך</p>
     
-    <div id="compassStatus" class="compass-box" onclick="activateCompassManually()">⚡ המצפן ממתין לאישור. לחץ כאן כדי להפעיל ולהציג אותו על המפה</div>
+    <div id="compassStatus" class="compass-box" onclick="activateCompassManually()">⚡ המצפן כבוי. לחץ כאן כדי להפעיל ולסובב את המפה</div>
 
     <div class="layout">
         <div class="map-container">
+            <!-- כוונת קבועה במרכז המפה המסתובבת -->
+            <div class="map-crosshair"></div>
             <div id="map"></div>
         </div>
         
@@ -105,9 +115,9 @@
                 <p>📏 אורך הצל המוטל: <span class="highlight" style="color: #b91c1c;" id="shadowLength">-</span> מטרים</p>
                 
                 <div class="legend">
-                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #f59e0b; background: transparent; height: 8px;"></span>קשת: מסלול השמש בדרום</div>
-                    <div class="legend-item"><span class="legend-color" style="background: rgba(37, 99, 235, 0.2); border: 1px solid #2563eb;"></span>חרוט כחול: כיוון מבט הטלפון שלך</div>
-                    <div class="legend-item"><span class="legend-color" style="background: #4b5563;"></span>קו אפור: הצל המוטל</div>
+                    <div class="legend-item"><span class="legend-color" style="border: 2px dashed #f59e0b; background: transparent; height: 8px;"></span>קשת: מסלול השמש היומי</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #ea580c; border-radius: 50%;"></span>נקודה: השמש בשעה הנבחרת</div>
+                    <div class="legend-item"><span class="legend-color" style="background: #4b5563;"></span>קו אפור: הצל המוטל בשטח</div>
                 </div>
             </div>
         </div>
@@ -128,13 +138,15 @@
     let selectedLat = null;
     let selectedLng = null;
     let map, marker, sunPathLine, currentSunMarker, sunRayLine, shadowLine;
-    let compassCone = null; // שכבת חרוט המצפן על המפה
+    let currentHeading = 0; // זווית המצפן הנוכחית של הטלפון
 
     window.onload = function() {
-        map = L.map('map').setView([32.0853, 34.7818], 9); 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+        map = L.map('map', {
+            zoomControl: false, // ביטול כפתורי פלוס מינוס שלא יסתובבו על המסך
+            attributionControl: false
+        }).setView([32.0853, 34.7818], 9); 
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         map.on('click', function(e) {
             setNewLocation(e.latlng.lat, e.latlng.lng);
@@ -152,10 +164,10 @@
                 (position) => {
                     let lat = position.coords.latitude;
                     let lng = position.coords.longitude;
-                    map.setView([lat, lng], 18); // זום חזק וממוקד לבניין
+                    map.setView([lat, lng], 18); // ננעל על הבניין בזום קרוב
                     setNewLocation(lat, lng);
                 },
-                (error) => { console.log("GPS אוטומטי נשלל"); },
+                (error) => { console.log("GPS נכשל"); },
                 { enableHighAccuracy: true, timeout: 7000 }
             );
         }
@@ -167,7 +179,7 @@
                 if (state === 'granted') window.addEventListener('deviceorientation', handleOrientation, true);
             });
         } else {
-            document.getElementById('compassStatus').innerHTML = "🔄 מפעיל חיישנים ומצפן על המפה...";
+            document.getElementById('compassStatus').innerHTML = "🔄 מסנכרן מצפן ומסובב את המפה...";
             window.addEventListener('deviceorientationabsolute', handleOrientation, true);
             window.addEventListener('deviceorientation', handleOrientation, true);
         }
@@ -181,53 +193,36 @@
             heading = event.webkitCompassHeading;
         } else if (event.absolute === true || event.alpha !== null) {
             heading = 360 - event.alpha; 
-            if(event.beta > 45) heading = (heading + 180) % 360; // תיקון מצב אחיזה אנכי
+            if(event.beta > 45) heading = (heading + 180) % 360; 
         }
 
         if (heading !== null && !isNaN(heading)) {
             statusBox.classList.add('compass-active');
-            let roundedHeading = Math.round(heading);
-            statusBox.innerHTML = `🧭 מצפן מפה פעיל! כיוון מכשיר: ${roundedHeading}°`;
+            currentHeading = Math.round(heading);
+            statusBox.innerHTML = `🧭 המפה מסתובבת איתך! כיוון מבט: ${currentHeading}°`;
 
-            // --- ציור ועדכון חרוט המצפן על המפה ---
-            if (!selectedLat || !selectedLng) return;
+            // --- סיבוב פיזי של אלמנט המפה ב-CSS ---
+            // אנחנו מסובבים את המפה בכיוון ההפוך לסיבוב המכשיר כדי שהחלק שמולך יישאר תמיד למעלה במסך
+            const mapElement = document.getElementById('map');
+            mapElement.style.transform = `rotate(${-currentHeading}deg)`;
 
-            if (compassCone) map.removeLayer(compassCone);
-
-            // המרת כיוון המצפן למערכת המפה הגיאומטרית
-            let centerAngleRad = (90 - roundedHeading) * (Math.PI / 180);
-            
-            // יצירת חרוט ראייה בזווית של 40 מעלות (20 לכל צד)
-            let leftAngleRad = centerAngleRad + (20 * Math.PI / 180);
-            let rightAngleRad = centerAngleRad - (20 * Math.PI / 180);
-            
-            const coneRadius = 0.0004; // אורך חרוט המצפן (כ-40 מטרים על המפה)
-
-            let leftLat = selectedLat + (Math.sin(leftAngleRad) * coneRadius);
-            let leftLng = selectedLng + (Math.cos(leftAngleRad) * coneRadius);
-            let rightLat = selectedLat + (Math.sin(rightAngleRad) * coneRadius);
-            let rightLng = selectedLng + (Math.cos(rightAngleRad) * coneRadius);
-
-            // ציור המצפן כפוליגון (משולש חרוטי שיוצא מהסמן של הבית)
-            compassCone = L.polygon([
-                [selectedLat, selectedLng],
-                [leftLat, leftLng],
-                [rightLat, rightLng]
-            ], {
-                color: '#2563eb',
-                fillColor: '#3b82f6',
-                fillOpacity: 0.25,
-                weight: 1.5
-            }).addTo(map);
+            // שמירה על הסמן שלך במרכז המפה בזמן סיבוב
+            if (selectedLat && selectedLng) {
+                map.panTo([selectedLat, selectedLng], { animate: false });
+            }
         }
     }
 
     function setNewLocation(lat, lng) {
         selectedLat = lat;
         selectedLng = lng;
+        
         if (marker) marker.setLatLng([lat, lng]);
         else marker = L.marker([lat, lng]).addTo(map);
+        
+        map.panTo([lat, lng], { animate: false });
         document.getElementById('timeSlider').disabled = false;
+        
         drawSunPath();
         updateSimulation();
     }
@@ -235,7 +230,7 @@
     function drawSunPath() {
         if (sunPathLine) map.removeLayer(sunPathLine);
         let pathCoords = [];
-        const radius = 0.0015; 
+        const radius = 0.0012; 
         for (let a = 0; a <= 180; a += 5) {
             let rad = a * Math.PI / 180;
             let pLat = selectedLat - (Math.sin(rad) * radius * 0.7); 
@@ -282,7 +277,7 @@
         if(sunRayLine) map.removeLayer(sunRayLine);
         if(shadowLine) map.removeLayer(shadowLine);
 
-        const radius = 0.0015;
+        const radius = 0.0012;
         let sunRad = (totalDayMinutes * 180) * Math.PI / 180; 
         let sunLat = selectedLat - (Math.sin(sunRad) * radius * 0.7);
         let sunLng = selectedLng + (Math.cos(sunRad) * radius);
