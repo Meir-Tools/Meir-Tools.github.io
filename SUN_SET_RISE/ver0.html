@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>מחשבון נקודות קיצון בשנה</title>
+    <style>
+        .solstice-widget { font-family: system-ui, sans-serif; background: #ffffff; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 360px; direction: rtl; border: 1px solid #e2e8f0; }
+        .solstice-widget h3 { margin: 0 0 10px 0; font-size: 16px; color: #1e293b; text-align: center; }
+        .solstice-geo-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .solstice-geo-inputs label { font-size: 11px; color: #64748b; font-weight: 600; }
+        .solstice-geo-inputs input { padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; margin-top: 2px; }
+        .solstice-day-card { background: #f8fafc; padding: 10px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #edf2f7; }
+        .solstice-day-title { font-weight: bold; font-size: 13px; display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .solstice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 11px; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="solstice-widget">
+    <h3>📊 נקודות קיצון שנתיות (אור שמש)</h3>
+    
+    <div class="solstice-geo-inputs">
+        <div>
+            <label>קו רוחב (Lat):</label>
+            <input type="number" id="sol-lat" value="32.08" step="0.01" oninput="calcSolstices()">
+        </div>
+        <div>
+            <label>קו אורך (Lng):</label>
+            <input type="number" id="sol-lng" value="34.78" step="0.01" oninput="calcSolstices()">
+        </div>
+    </div>
+
+    <!-- היום הארוך -->
+    <div class="solstice-day-card">
+        <div class="solstice-day-title" style="color: #b45309;">
+            <span>☀️ היום הארוך (21 ביוני)</span>
+            <span id="sol-long-len">--:--</span>
+        </div>
+        <div class="solstice-grid">
+            <div>🌅 <b>זריחה:</b><br>מקומי: <span id="sol-long-rise-loc">--:--</span><br>ישראל: <span id="sol-long-rise-il">--:--</span></div>
+            <div>🌇 <b>שקיעה:</b><br>מקומי: <span id="sol-long-set-loc">--:--</span><br>ישראל: <span id="sol-long-set-il">--:--</span></div>
+        </div>
+    </div>
+
+    <!-- היום הקצר -->
+    <div class="solstice-day-card" style="margin-bottom:0;">
+        <div class="solstice-day-title" style="color: #1e293b;">
+            <span>❄️ היום הקצר (21 בדצמבר)</span>
+            <span id="sol-short-len">--:--</span>
+        </div>
+        <div class="solstice-grid">
+            <div>🌅 <b>זריחה:</b><br>מקומי: <span id="sol-short-rise-loc">--:--</span><br>ישראל: <span id="sol-short-rise-il">--:--</span></div>
+            <div>🌇 <b>שקיעה:</b><br>מקומי: <span id="sol-short-set-loc">--:--</span><br>ישראל: <span id="sol-short-set-il">--:--</span></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function calcSolstices() {
+        const lat = parseFloat(document.getElementById('sol-lat').value);
+        const lng = parseFloat(document.getElementById('sol-lng').value);
+        if (isNaN(lat) || isNaN(lng)) return;
+
+        const localOffset = Math.round(lng / 15);
+        const israelOffset = -new Date().getTimezoneOffset() / 60;
+
+        const format = (m) => {
+            let mins = Math.round(m);
+            mins = ((mins % 1440) + 1440) % 1440;
+            return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+        };
+
+        const getSunData = (doy) => {
+            const gamma = 2 * Math.PI / 365 * (doy - 1);
+            const eqtime = 229.18 * (0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma) - 0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma));
+            const decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma) - 0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma);
+            
+            const cosHA = (Math.cos(90.833 * Math.PI / 180) / (Math.cos(lat * Math.PI / 180) * Math.cos(decl))) - (Math.tan(lat * Math.PI / 180) * Math.tan(decl));
+            if (cosHA > 1) return { dur: 0, rise: null, set: null };
+            if (cosHA < -1) return { dur: 1440, rise: null, set: null };
+
+            const haMins = (Math.acos(cosHA) * 180 / Math.PI) * 4;
+            const noonUTC = 720 - (4 * lng) - eqtime;
+            return { dur: haMins * 2, rise: noonUTC - haMins, set: noonUTC + haMins };
+        };
+
+        // 172 = 21 ביוני, 355 = 21 בדצמבר
+        const june = getSunData(172), dec = getSunData(355);
+        let long = lat >= 0 ? june : dec, short = lat >= 0 ? dec : june;
+
+        const updateUI = (prefix, data) => {
+            document.getElementById(`sol-${prefix}-len`).innerText = `${Math.floor(data.dur / 60)}ש' ו-${Math.round(data.dur % 60)}ד'`;
+            if (data.rise !== null) {
+                document.getElementById(`sol-${prefix}-rise-loc`).innerText = format(data.rise + (localOffset * 60));
+                document.getElementById(`sol-${prefix}-set-loc`).innerText = format(data.set + (localOffset * 60));
+                document.getElementById(`sol-${prefix}-rise-il`).innerText = format(data.rise + (israelOffset * 60));
+                document.getElementById(`sol-${prefix}-set-il`).innerText = format(data.set + (israelOffset * 60));
+            } else {
+                const txt = data.dur === 0 ? 'אין' : 'חצות';
+                document.getElementById(`sol-${prefix}-rise-loc`).innerText = txt;
+                document.getElementById(`sol-${prefix}-set-loc`).innerText = txt;
+                document.getElementById(`sol-${prefix}-rise-il`).innerText = '--:--';
+                document.getElementById(`sol-${prefix}-set-il`).innerText = '--:--';
+            }
+        };
+
+        updateUI('long', long);
+        updateUI('short', short);
+    }
+    calcSolstices();
+</script>
+
+</body>
+</html>

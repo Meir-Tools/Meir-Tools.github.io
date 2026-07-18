@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מחשבון שמש ומפה אינטראקטיבית</title>
+    <!-- טעינת ה-CSS של המפה -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg-sky: linear-gradient(to bottom, #1e3c72, #2a5298);
+            --sun-color: #fdb813;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 550px;
+        }
+        h2 {
+            text-align: center;
+            color: #1e293b;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        
+        /* אזור האנימציה הוויזואלית */
+        .sky-display {
+            width: 100%;
+            height: 160px;
+            background: var(--bg-sky);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 15px;
+            transition: background 0.5s ease;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+        }
+        .sun-path {
+            position: absolute;
+            width: 80%;
+            height: 160px;
+            border: 2px dashed rgba(255, 255, 255, 0.25);
+            border-radius: 50%;
+            bottom: -80px;
+            left: 10%;
+        }
+        .sun {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: var(--sun-color);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--sun-color), 0 0 30px #ff8c00;
+            bottom: -12px;
+            left: 50%;
+            transform: translate(-50%, 50%);
+            transition: all 0.1s linear;
+        }
+        .horizon {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* סליידר הזמן */
+        .slider-group {
+            margin-bottom: 20px;
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        .time-slider {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        /* מפה */
+        #map {
+            width: 100%;
+            height: 200px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #cbd5e1;
+        }
+
+        /* עיצוב הטפסים והתוצאות */
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .input-group.full {
+            grid-column: span 2;
+        }
+        label {
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #475569;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+        .results {
+            border-top: 2px solid #f1f5f9;
+            padding-top: 15px;
+        }
+        .result-item {
+            display: flex;
+            flex-direction: column;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+        .result-sub-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #64748b;
+        }
+        .time-val {
+            font-weight: 700;
+            color: #2563eb;
+        }
+        
+        /* סגנון מורחב לנקודות קיצון שנתיות */
+        .solstice-box {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #cbd5e1;
+        }
+        .solstice-title {
+            font-size: 14px;
+            color: #1e293b;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .solstice-item {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .solstice-header {
+            font-weight: bold;
+            font-size: 13.5px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .solstice-times-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 12px;
+            border-top: 1px solid #edf2f7;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+        .time-block {
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>מחשבון שמש ומפה אינטראקטיבית</h2>
+    
+    <!-- הוידג'ט הויזואלי עם האנימציה -->
+    <div class="sky-display" id="skyDisplay">
+        <div class="sun-path"></div>
+        <div class="sun" id="sunElement"></div>
+        <div class="horizon"></div>
+    </div>
+
+    <!-- סליידר לשליטה בזמן לשם בדיקת האנימציה -->
+    <div class="slider-group">
+        <div class="slider-label">
+            <span>בדיקת האנימציה (לפי שעון מקומי שם):</span>
+            <span id="sliderTimeText">12:00</span>
+        </div>
+        <input type="range" id="timeSlider" class="time-slider" min="0" max="1439" value="720">
+    </div>
+    
+    <!-- רכיב המפה -->
+    <label>לחץ על המפה לבחירת מיקום:</label>
+    <div id="map"></div>
+    
+    <div class="input-row">
+        <div class="input-group full">
+            <label for="date">תאריך לתצוגה:</label>
+            <input type="date" id="date">
+        </div>
+        <div class="input-group">
+            <label for="lat">קו רוחב (Lat):</label>
+            <input type="number" id="lat" value="32.83" step="0.01">
+        </div>
+        <div class="input-group">
+            <label for="lng">קו אורך (Lng):</label>
+            <input type="number" id="lng" value="35.08" step="0.01">
+        </div>
+    </div>
+
+    <div class="results">
+        <!-- זריחה בתאריך נבחר -->
+        <div class="result-item">
+            <div class="result-row">
+                <span>🌅 זריחה (תאריך נבחר):</span>
+                <span id="sunrise-local" class="time-val">--:--</span>
+            </div>
+            <div class="result-sub-row">
+                <span>בשעון ישראל: <span id="sunrise-il">--:--</span></span>
+            </div>
+        </div>
+
+        <!-- שקיעה בתאריך נבחר -->
+        <div class="result-item">
+            <div class="result-row">
+                <span>🌇 שקיעה (תאריך נבחר):</span>
+                <span id="sunset-local" class="time-val">--:--</span>
+            </div>
+            <div class="result-sub-row">
+                <span>בשעון ישראל: <span id="sunset-il">--:--</span></span>
+            </div>
+        </div>
+
+        <!-- אורך יום -->
+        <div class="result-item" style="border-bottom:none;">
+            <div class="result-row">
+                <span>⏱️ אורך היום בתאריך הנבחר:</span>
+                <span id="day-length" class="time-val" style="color:#059669;">--:--</span>
+            </div>
+        </div>
+        
+        <!-- נקודות הקיצון השנתיות בהשוואת שעונים -->
+        <div class="solstice-box">
+            <div class="solstice-title">📊 נקודות קיצון שנתיות במיקום זה:</div>
+            
+            <!-- היום הארוך בשנה -->
+            <div class="solstice-item">
+                <div class="solstice-header" style="color: #b45309;">
+                    <span>☀️ היום הארוך בשנה (21 ביוני)</span>
+                    <span id="longest-length">--:--</span>
+                </div>
+                <div class="solstice-times-grid">
+                    <div class="time-block">
+                        <strong>🌅 זריחה:</strong>
+                        <span>מקומי: <strong id="long-rise-loc">--:--</strong></span>
+                        <span>ישראל: <span id="long-rise-il">--:--</span></span>
+                    </div>
+                    <div class="time-block">
+                        <strong>🌇 שקיעה:</strong>
+                        <span>מקומי: <strong id="long-set-loc">--:--</strong></span>
+                        <span>ישראל: <span id="long-set-il">--:--</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- היום הקצר בשנה -->
+            <div class="solstice-item">
+                <div class="solstice-header" style="color: #1e293b;">
+                    <span>❄️ היום הקצר בשנה (21 בדצמבר)</span>
+                    <span id="shortest-length">--:--</span>
+                </div>
+                <div class="solstice-times-grid">
+                    <div class="time-block">
+                        <strong>🌅 זריחה:</strong>
+                        <span>מקומי: <strong id="short-rise-loc">--:--</strong></span>
+                        <span>ישראל: <span id="short-rise-il">--:--</span></span>
+                    </div>
+                    <div class="time-block">
+                        <strong>🌇 שקיעה:</strong>
+                        <span>מקומי: <strong id="short-set-loc">--:--</strong></span>
+                        <span>ישראל: <span id="short-set-il">--:--</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- טעינת סקריפט המפה קודם -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const dateElem = document.getElementById('date');
+    dateElem.valueAsDate = new Date();
+
+    const now = new Date();
+    const currentMins = (now.getHours() * 60) + now.getMinutes();
+    const timeSlider = document.getElementById('timeSlider');
+    timeSlider.value = currentMins;
+
+    function toRadians(deg) { return deg * Math.PI / 180; }
+    function toDegrees(rad) { return rad * 180 / Math.PI; }
+
+    function formatMinutes(minutes) {
+        let mins = Math.round(minutes);
+        while (mins < 0) mins += 1440;
+        while (mins >= 1440) mins -= 1440;
+        return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+    }
+
+    // פונקציה להמרת דקות משעון מקומי לשעון ישראל
+    function convertToIsraelTime(localMins, localOffset, israelOffset) {
+        let utcMins = localMins - (localOffset * 60);
+        let ilMins = utcMins + (israelOffset * 60);
+        return formatMinutes(ilMins);
+    }
+
+    function updateVisuals(sunriseMins, sunsetMins) {
+        const sliderVal = parseInt(timeSlider.value);
+        const hours = Math.floor(sliderVal / 60);
+        const mins = sliderVal % 60;
+        document.getElementById('sliderTimeText').innerText = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+
+        const sun = document.getElementById('sunElement');
+        const sky = document.getElementById('skyDisplay');
+        
+        const isDaytime = sliderVal >= sunriseMins && sliderVal <= sunsetMins;
+        
+        if (isDaytime && sunriseMins !== sunsetMins) {
+            const dayProgress = (sliderVal - sunriseMins) / (sunsetMins - sunriseMins);
+            const angle = Math.PI - (dayProgress * Math.PI);
+            
+            const radiusX = 40; 
+            const radiusY = 80; 
+            
+            const posX = 50 + radiusX * Math.cos(angle); 
+            const posY = 0 + radiusY * Math.sin(angle);  
+            
+            sun.style.left = `${posX}%`;
+            sun.style.bottom = `${posY - 12}px`;
+            
+            if (dayProgress < 0.12 || dayProgress > 0.88) {
+                sky.style.setProperty('--bg-sky', 'linear-gradient(to bottom, #e65c00, #f9d423)');
+            } else {
+                sky.style.setProperty('--bg-sky', 'linear-gradient(to bottom, #56ccf2, #2f80ed)');
+            }
+        } else {
+            sun.style.left = "50%";
+            sun.style.bottom = "-30px";
+            sky.style.setProperty('--bg-sky', 'linear-gradient(to bottom, #0f2027, #152630)');
+        }
+    }
+
+    let calculatedSunriseLocal = 340;
+    let calculatedSunsetLocal = 1180;
+
+    // חישוב נתונים סולאריים ביחס לאזור זמן מוגדר
+    function getSolarData(targetDate, lat, lng, targetOffset) {
+        const start = new Date(targetDate.getFullYear(), 0, 0);
+        const diff = targetDate - start;
+        const oneDay = 1000 * 60 * 60 * 24;
+        const dayOfYear = Math.floor(diff / oneDay);
+
+        const gamma = 2 * Math.PI / 365 * (dayOfYear - 1 + (12 - lng / 15) / 24);
+        const eqtime = 229.18 * (0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma) - 0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma));
+        const decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma) - 0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma) - 0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma);
+
+        const zenith = toRadians(90.833); 
+        const latRad = toRadians(lat);
+        const cosHA = (Math.cos(zenith) / (Math.cos(latRad) * Math.cos(decl))) - (Math.tan(latRad) * Math.tan(decl));
+
+        if (cosHA > 1) return { duration: 0, sunrise: null, sunset: null }; 
+        if (cosHA < -1) return { duration: 1440, sunrise: null, sunset: null }; 
+
+        const ha = Math.acos(cosHA);
+        const haDegrees = toDegrees(ha);
+        
+        // חישוב במונחי זמן מקומי אמיתי במקום המטורגט
+        const solarNoon = 720 - (4 * lng) - eqtime + (targetOffset * 60);
+        const sunrise = solarNoon - (haDegrees * 4);
+        const sunset = solarNoon + (haDegrees * 4);
+        
+        return { duration: sunset - sunrise, sunrise, sunset };
+    }
+
+    function calculateSolarTimes() {
+        const dateInput = new Date(dateElem.value);
+        const lat = parseFloat(document.getElementById('lat').value);
+        const lng = parseFloat(document.getElementById('lng').value);
+
+        if (isNaN(dateInput.getTime()) || isNaN(lat) || isNaN(lng)) return;
+
+        // 1. הערכת אזור הזמן המקומי הגיאוגרפי לפי קו האורך (כל 15 מעלות = שעה אחת)
+        const estimatedLocalOffset = Math.round(lng / 15); 
+        // אזור הזמן של המשתמש בישראל (לרוב +2 או +3 בהתאם לשעון קיץ/חורף במערכת)
+        const israelOffset = -dateInput.getTimezoneOffset() / 60;
+
+        // 2. חישוב לתאריך הנבחר
+        const currentData = getSolarData(dateInput, lat, lng, estimatedLocalOffset);
+        calculatedSunriseLocal = currentData.sunrise;
+        calculatedSunsetLocal = currentData.sunset;
+
+        if (currentData.sunrise === null) {
+            const msg = currentData.duration === 0 ? "לילה קוטבי" : "יום קוטבי/שמש חצות";
+            document.getElementById('sunrise-local').innerText = msg;
+            document.getElementById('sunset-local').innerText = msg;
+            document.getElementById('sunrise-il').innerText = "--:--";
+            document.getElementById('sunset-il').innerText = "--:--";
+            document.getElementById('day-length').innerText = currentData.duration === 0 ? "0 שעות" : "24 שעות";
+        } else {
+            document.getElementById('sunrise-local').innerText = formatMinutes(calculatedSunriseLocal);
+            document.getElementById('sunset-local').innerText = formatMinutes(calculatedSunsetLocal);
+            
+            // המרה לשעון ישראל לצורך השוואה
+            document.getElementById('sunrise-il').innerText = convertToIsraelTime(calculatedSunriseLocal, estimatedLocalOffset, israelOffset);
+            document.getElementById('sunset-il').innerText = convertToIsraelTime(calculatedSunsetLocal, estimatedLocalOffset, israelOffset);
+            
+            document.getElementById('day-length').innerText = `${Math.floor(currentData.duration / 60)} שעות ו-${Math.round(currentData.duration % 60)} דקות`;
+        }
+
+        // 3. חישוב נקודות קיצון שנתיות
+        const currentYear = dateInput.getFullYear();
+        const juneSolstice = new Date(currentYear, 5, 21);
+        const decSolstice = new Date(currentYear, 11, 21);
+
+        const juneData = getSolarData(juneSolstice, lat, lng, estimatedLocalOffset);
+        const decData = getSolarData(decSolstice, lat, lng, estimatedLocalOffset);
+
+        let longestData = lat >= 0 ? juneData : decData;
+        let shortestData = lat >= 0 ? decData : juneData;
+
+        // עדכון יום ארוך
+        document.getElementById('longest-length').innerText = `${Math.floor(longestData.duration / 60)} שעות ו-${Math.round(longestData.duration % 60)} דק'`;
+        if(longestData.sunrise !== null) {
+            document.getElementById('long-rise-loc').innerText = formatMinutes(longestData.sunrise);
+            document.getElementById('long-set-loc').innerText = formatMinutes(longestData.sunset);
+            document.getElementById('long-rise-il').innerText = convertToIsraelTime(longestData.sunrise, estimatedLocalOffset, israelOffset);
+            document.getElementById('long-set-il').innerText = convertToIsraelTime(longestData.sunset, estimatedLocalOffset, israelOffset);
+        } else {
+            document.getElementById('long-rise-loc').innerText = longestData.duration === 0 ? "אין" : "שמש חצות";
+            document.getElementById('long-set-loc').innerText = longestData.duration === 0 ? "אין" : "שמש חצות";
+        }
+
+        // עדכון יום קצר
+        document.getElementById('shortest-length').innerText = `${Math.floor(shortestData.duration / 60)} שעות ו-${Math.round(shortestData.duration % 60)} דק'`;
+        if(shortestData.sunrise !== null) {
+            document.getElementById('short-rise-loc').innerText = formatMinutes(shortestData.sunrise);
+            document.getElementById('short-set-loc').innerText = formatMinutes(shortestData.sunset);
+            document.getElementById('short-rise-il').innerText = convertToIsraelTime(shortestData.sunrise, estimatedLocalOffset, israelOffset);
+            document.getElementById('short-set-il').innerText = convertToIsraelTime(shortestData.sunset, estimatedLocalOffset, israelOffset);
+        } else {
+            document.getElementById('short-rise-loc').innerText = shortestData.duration === 0 ? "אין זריחה" : "שמש חצות";
+            document.getElementById('short-set-loc').innerText = shortestData.duration === 0 ? "אין שקיעה" : "שמש חצות";
+        }
+
+        updateVisuals(calculatedSunriseLocal, calculatedSunsetLocal);
+    }
+
+    // הגדרת מפה אינטראקטיבית באמצעות Leaflet
+    const defaultLat = 32.83;
+    const defaultLng = 35.08;
+    
+    const map = L.map('map').setView([defaultLat, defaultLng], 9);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let marker = L.marker([defaultLat, defaultLng]).addTo(map);
+
+    map.on('click', function(e) {
+        const clickedLat = e.latlng.lat.toFixed(4);
+        const clickedLng = e.latlng.lng.toFixed(4);
+        
+        document.getElementById('lat').value = clickedLat;
+        document.getElementById('lng').value = clickedLng;
+        
+        marker.setLatLng(e.latlng);
+        calculateSolarTimes();
+    });
+
+    dateElem.addEventListener('change', calculateSolarTimes);
+    document.getElementById('lat').addEventListener('input', function() {
+        const l = parseFloat(this.value);
+        if(!isNaN(l)) { marker.setLatLng([l, marker.getLatLng().lng]); calculateSolarTimes(); }
+    });
+    document.getElementById('lng').addEventListener('input', function() {
+        const ln = parseFloat(this.value);
+        if(!isNaN(ln)) { marker.setLatLng([marker.getLatLng().lat, ln]); calculateSolarTimes(); }
+    });
+
+    timeSlider.addEventListener('input', () => updateVisuals(calculatedSunriseLocal, calculatedSunsetLocal));
+
+    calculateSolarTimes();
+</script>
+
+</body>
+</html>
