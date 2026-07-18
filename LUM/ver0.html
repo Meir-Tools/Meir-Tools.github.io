@@ -17,7 +17,6 @@
             color: #f1f5f9;
         }
         
-        /* אפקט זכוכית שקופה ומסגרות עדינות */
         .glass-card {
             background: rgba(15, 23, 42, 0.65);
             backdrop-filter: blur(16px);
@@ -34,7 +33,6 @@
             box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
         }
 
-        /* עיצוב המפה */
         #map {
             height: 220px;
             border-radius: 16px;
@@ -42,7 +40,6 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* קשת מסלול השמש הויזואלית */
         .gauge-container {
             position: relative;
             width: 200px;
@@ -55,7 +52,6 @@
             transition: stroke-dashoffset 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* עיצוב סליידרים */
         input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
@@ -81,7 +77,6 @@
             transform: scale(1.2);
         }
 
-        /* בועת המצלמה */
         .camera-bubble {
             width: 80px;
             height: 80px;
@@ -91,7 +86,6 @@
             box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
         }
 
-        /* סנכרון גלילה ועימוד */
         .custom-scroll::-webkit-scrollbar {
             width: 6px;
         }
@@ -209,9 +203,12 @@
             </div>
 
             <!-- התראות מקומיות קופצות (ללא alert) -->
-            <div id="toast" class="hidden mt-4 p-3 bg-red-950/60 border border-red-900/50 text-red-200 text-xs rounded-xl text-center flex items-center justify-center gap-2">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <span id="toastText"></span>
+            <div id="toast" class="hidden mt-4 p-3 bg-red-950/60 border border-red-900/50 text-red-200 text-xs rounded-xl text-center flex items-center justify-center gap-2 flex-col">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation text-red-400"></i>
+                    <span id="toastText" class="font-bold"></span>
+                </div>
+                <span id="toastSubtext" class="text-[10px] text-red-300/80 mt-1"></span>
             </div>
 
         </div>
@@ -288,6 +285,15 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // פונקציות עזר מתמטיות שהיו חסרות וגרמו לקריסת הקוד
+        function toRadians(degrees) {
+            return degrees * (Math.PI / 180);
+        }
+
+        function toDegrees(radians) {
+            return radians * (180 / Math.PI);
+        }
+
         // אלמנטים מה-DOM
         const gaugeProgress = document.getElementById('gaugeProgress');
         const luxValueText = document.getElementById('luxValue');
@@ -297,6 +303,7 @@
         const statusCard = document.getElementById('statusCard');
         const toast = document.getElementById('toast');
         const toastText = document.getElementById('toastText');
+        const toastSubtext = document.getElementById('toastSubtext');
         
         const btnCamera = document.getElementById('btnCamera');
         const btnSensor = document.getElementById('btnSensor');
@@ -321,7 +328,6 @@
         // משתנים גלובליים
         let cameraInterval = null;
         let sensorInstance = null;
-        let activeTab = 'meter';
         let currentLuxValue = 350;
 
         // משתני סאונד (Web Audio API)
@@ -330,12 +336,13 @@
         let gainNode = null;
         let isSoundPlaying = false;
 
-        // פונקציית טוסט מהירה ויפה במקום alert
-        function showToast(msg) {
+        function showToast(msg, submsg = "") {
             if (msg) {
                 toastText.innerText = msg;
+                toastSubtext.innerText = submsg;
                 toast.classList.remove('hidden');
-                setTimeout(() => toast.classList.add('hidden'), 5000);
+                // אם זו שגיאה חומרה, נשאיר אותה קצת יותר זמן
+                setTimeout(() => toast.classList.add('hidden'), 8000);
             } else {
                 toast.classList.add('hidden');
             }
@@ -391,10 +398,10 @@
                     map.setView(newLatLng, 13);
                     calculateSolarTimes();
                 }, () => {
-                    showToast("לא ניתן לגשת למיקומך. וודא שאישרת הרשאות מיקום בדפדפן.");
+                    showToast("לא ניתן לגשת למיקומך", "אנא וודא שאישרת הרשאות מיקום בדפדפן.");
                 });
             } else {
-                showToast("הדפדפן שלך אינו תומך בזיהוי מיקום גיאוגרפי.");
+                showToast("הדפדפן אינו תומך בזיהוי מיקום גיאוגרפי.");
             }
         });
 
@@ -439,9 +446,8 @@
             gainNode = audioCtx.createGain();
 
             oscillator.type = 'sine';
-            // שינוי תדר מבוסס עוצמת אור
             oscillator.frequency.value = mapLuxToHz(currentLuxValue);
-            gainNode.gain.value = 0.1; // ווליום עדין כדי לא להציק
+            gainNode.gain.value = 0.1;
 
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
@@ -449,7 +455,6 @@
         }
 
         function mapLuxToHz(lux) {
-            // ממפה 0-3000 לוקס לטווח תדרים של 200Hz - 900Hz
             const minHz = 200;
             const maxHz = 900;
             const percentage = Math.min(lux / 3000, 1);
@@ -487,19 +492,16 @@
             luxValueText.innerText = lux.toLocaleString();
             pushHistoryData(lux);
 
-            // עדכון הקול
             if (audioCtx && isSoundPlaying) {
                 oscillator.frequency.setValueAtTime(mapLuxToHz(lux), audioCtx.currentTime);
             }
 
-            // עדכון המד העגול
             const maxDisplayLux = 3000;
             const percentage = Math.min(lux / maxDisplayLux, 1);
             const circumference = 2 * Math.PI * 42; 
             const offset = circumference - (percentage * circumference);
             gaugeProgress.style.strokeDashoffset = offset;
 
-            // שינוי צבע הילה דינמי
             if (lux > 1500) {
                 gaugeProgress.style.stroke = '#ef4444';
             } else if (lux > 500) {
@@ -508,7 +510,6 @@
                 gaugeProgress.style.stroke = '#3b82f6';
             }
 
-            // קביעת טקסט הסטטוס
             let icon = '🌑';
             let title = 'חשיכה מוחלטת';
             let desc = 'תנאים אלו מתאימים לשינה עמוקה או צילום לילה.';
@@ -556,7 +557,10 @@
                 try {
                     const permission = await navigator.permissions.query({ name: 'ambient-light-sensor' });
                     if (permission.state === 'denied') {
-                        showToast("הגישה לחיישן נחסמה. קרא את ההנחיות והפעל אותו בכרום.");
+                        showToast(
+                            "חיישן האור הפיזי נחסם בדפדפן זה", 
+                            "לשימוש בחיישן, וודא שהפעלת את דגל הדפדפן (chrome://flags/#enable-generic-sensor-extra-classes) או השתמש במדידת מצלמה."
+                        );
                         return;
                     }
 
@@ -567,17 +571,26 @@
                         updateLuxDisplay(sensorInstance.illuminance);
                     });
                     sensorInstance.addEventListener('error', (event) => {
-                        showToast(`שגיאת חיישן: ${event.error.name}. ייתכן ודרושה הפעלה בדגל הדפדפן.`);
+                        showToast(
+                            "חיישן החומרה חסום או לא נתמך", 
+                            "הדפדפן רץ בסביבה מוגנת (iframe) המונעת גישה לחיישן. מומלץ להשתמש ב'מדידת מצלמה' היציבה!"
+                        );
                     });
                     
                     sensorInstance.start();
                     btnSensor.classList.add('ring-4', 'ring-emerald-500/50');
                     btnCamera.classList.remove('ring-4');
                 } catch (err) {
-                    showToast("נכשל בחיבור לחיישן. מומלץ להשתמש במדידת מצלמה!");
+                    showToast(
+                        "נכשל בחיבור לחיישן החומרה הפיזי", 
+                        "בשל מגבלות אבטחה של סביבת ה-Iframe, נסה להשתמש ב'מדידת מצלמה' כמד אור אופטי אמיתי ומדויק."
+                    );
                 }
             } else {
-                showToast("הדפדפן אינו תומך בחיישן הפיזי. אנא השתמש במדידת מצלמה.");
+                showToast(
+                    "חיישן האור הפיזי אינו נתמך בדפדפן זה", 
+                    "מערכת האבטחה של הדפדפן מונעת את קליטת חיישן ה-Lux הפיזי. נסה כעת את 'מדידת המצלמה' היציבה!"
+                );
             }
         });
 
@@ -600,7 +613,7 @@
                 btnCamera.classList.add('bg-red-600', 'hover:from-red-500', 'hover:to-red-600', 'ring-4', 'ring-red-500/50');
                 btnSensor.classList.remove('ring-4');
             } catch (err) {
-                showToast("לא ניתן לגשת למצלמה. וודא שאישרת הרשאות מצלמה.");
+                showToast("לא ניתן לגשת למצלמה", "וודא שאישרת הרשאות גישה למצלמה בדפדפן.");
             }
         });
 
@@ -630,14 +643,12 @@
                     const r = data[i];
                     const g = data[i+1];
                     const b = data[i+2];
-                    // נוסחה אופטית להתאמת העין האנושית לצבעים (Luminance)
                     const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
                     totalLuminance += luminance;
                 }
                 
                 const avgLuminance = totalLuminance / (data.length / 4);
                 const calibration = parseFloat(calibrationMultiplier.value);
-                // המרה ללוקס משוערך המותאם לטווח הכללי
                 const estimatedLux = Math.pow(avgLuminance / 255, 1.6) * 2400 * calibration;
                 updateLuxDisplay(estimatedLux);
             }
@@ -717,18 +728,16 @@
             const skySun = document.getElementById('skySun');
             
             if (currentMins >= sunriseMins && currentMins <= sunsetMins) {
-                // שעות היום
                 const progress = (currentMins - sunriseMins) / (sunsetMins - sunriseMins);
-                const angle = Math.PI - (progress * Math.PI); // המרה לחצי קשת
+                const angle = Math.PI - (progress * Math.PI); 
                 
-                const posX = 50 + 40 * Math.cos(angle); // 40% רדיוס X
-                const posY = -10 + 80 * Math.sin(angle); // 80 פיקסלים רדיוס Y
+                const posX = 50 + 40 * Math.cos(angle); 
+                const posY = -10 + 80 * Math.sin(angle); 
                 
                 skySun.style.left = `${posX}%`;
                 skySun.style.bottom = `${posY}px`;
                 skySun.style.display = 'flex';
             } else {
-                // לילה
                 skySun.style.display = 'none';
             }
         }
