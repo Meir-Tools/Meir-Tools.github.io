@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מד אור דיגיטלי מקצועי - Lux Meter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Rubik', 'Inter', system-ui, -apple-system, sans-serif;
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+            color: #f1f5f9;
+        }
+        /* עיצוב ייחודי למד המחוג העגול */
+        .gauge-container {
+            position: relative;
+            width: 250px;
+            height: 250px;
+        }
+        .gauge-circle {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            transition: stroke-dashoffset 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* אפקט הילה רך לשמש/אייקון המרכזי */
+        .glow-effect {
+            filter: drop-shadow(0 0 15px rgba(251, 191, 36, 0.5));
+            transition: all 0.3s ease;
+        }
+        /* בועת תצוגה מקדימה מעוצבת למצלמה */
+        .camera-preview-container {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid #3b82f6;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+            transition: all 0.3s ease;
+        }
+        /* אפקטי זכוכית מודרניים */
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 md:p-8">
+
+    <div class="w-full max-w-lg glass-card rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden my-6">
+        
+        <!-- כותרת ראשית -->
+        <div class="text-center mb-6">
+            <span class="bg-blue-500/10 text-blue-400 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider border border-blue-500/20">מדידה אופטית וחומרה</span>
+            <h1 class="text-3xl font-bold mt-2 text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-400 to-yellow-500">מד עוצמת אור דיגיטלי</h1>
+            <p class="text-slate-400 text-xs mt-1">מדידה מדויקת בזמן אמת ביחידות LUX</p>
+        </div>
+
+        <!-- תצוגת המד העגול -->
+        <div class="flex flex-col items-center justify-center mb-6">
+            <div class="gauge-container flex items-center justify-center">
+                <!-- גרפיקת ה-SVG של המד העגול -->
+                <svg class="absolute w-full h-full" viewBox="0 0 100 100">
+                    <!-- עיגול רקע כהה -->
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="#1e293b" stroke-width="5" stroke-linecap="round"></circle>
+                    <!-- קו התקדמות צבעוני המשתנה דינמית -->
+                    <circle id="gaugeProgress" cx="50" cy="50" r="42" fill="none" stroke="url(#luxGradient)" stroke-width="5" 
+                            stroke-dasharray="263.8" stroke-dashoffset="263.8" class="gauge-circle" stroke-linecap="round"></circle>
+                    
+                    <defs>
+                        <linearGradient id="luxGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#fbbf24" />
+                            <stop offset="50%" stop-color="#f97316" />
+                            <stop offset="100%" stop-color="#ef4444" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+
+                <!-- נתוני המדידה במרכז העיגול -->
+                <div class="text-center z-10">
+                    <div id="sunIcon" class="text-5xl mb-2 glow-effect">☀️</div>
+                    <div id="luxValue" class="text-5xl font-black tracking-tight text-white transition-all duration-100">0</div>
+                    <div class="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">LUX</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- כרטיס סטטוס ותובנת תאורה -->
+        <div id="statusCard" class="bg-slate-850/80 border border-slate-700/40 rounded-2xl p-4 text-center mb-6 transition-all duration-300">
+            <h2 id="statusTitle" class="font-bold text-amber-400 text-lg">מוכן למדידה</h2>
+            <p id="statusDesc" class="text-slate-300 text-xs mt-1">בחר מצב הפעלה כדי לראות את עוצמת האור בחדר</p>
+        </div>
+
+        <!-- גרף היסטוריית מדידות קטן -->
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-2 px-1">
+                <span class="text-xs text-slate-400 font-semibold">גרף שינויים בזמן אמת:</span>
+                <span class="text-[10px] text-blue-400" id="refreshRate">עדכון: 100ms</span>
+            </div>
+            <div class="bg-slate-950/80 rounded-xl p-2 border border-slate-800/80">
+                <canvas id="historyChart" class="w-full h-20"></canvas>
+            </div>
+        </div>
+
+        <!-- לחצני הפעלה ושלט ידני -->
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+                <!-- כפתור מצלמה -->
+                <button id="btnCamera" class="flex flex-col items-center justify-center gap-1 py-3 px-4 bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 active:from-blue-800 active:to-blue-900 text-white font-semibold rounded-2xl shadow-lg transition-all text-sm group">
+                    <span class="text-xl group-hover:scale-110 transition-transform">📷</span>
+                    <span>מדידת מצלמה</span>
+                </button>
+                <!-- כפתור חיישן פיזי -->
+                <button id="btnSensor" class="flex flex-col items-center justify-center gap-1 py-3 px-4 bg-gradient-to-br from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 active:from-emerald-800 active:to-emerald-900 text-white font-semibold rounded-2xl shadow-lg transition-all text-sm group">
+                    <span class="text-xl group-hover:scale-110 transition-transform">⚡</span>
+                    <span>חיישן מכשיר</span>
+                </button>
+            </div>
+            
+            <!-- בועת תצוגה מקדימה נסתרת של המצלמה -->
+            <div id="cameraPreviewWrapper" class="hidden flex items-center gap-3 bg-slate-950/40 p-3 rounded-2xl border border-slate-800">
+                <div class="camera-preview-container">
+                    <video id="webcam" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-blue-400">בועת סריקה אופטית פעילה</h4>
+                    <p class="text-[11px] text-slate-400 mt-0.5">המצלמה מנתחת את האור המוחזר לעדשה מהסביבה.</p>
+                </div>
+            </div>
+
+            <!-- סליידר סימולציה ידנית למצבי הדמיה -->
+            <div class="bg-slate-950/40 border border-slate-800/60 rounded-2xl p-4">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs text-slate-400 font-semibold">סימולטור ידני (לבדיקה מהירה):</span>
+                    <span id="simulatorVal" class="text-xs text-amber-400 font-bold">250 Lux</span>
+                </div>
+                <input type="range" id="simSlider" min="0" max="2500" value="250" class="w-full accent-amber-500 cursor-pointer">
+            </div>
+        </div>
+
+        <canvas id="analysisCanvas" class="hidden" width="60" height="60"></canvas>
+
+        <!-- הוראות שימוש לדפדפן S25 -->
+        <div class="mt-6 pt-5 border-t border-slate-800/80">
+            <h3 class="text-xs font-bold text-slate-400 mb-2">איך להפעיל את חיישן ה-S25 המקורי בדפדפן?</h3>
+            <ol class="text-[11px] text-slate-400 list-decimal list-inside space-y-1 leading-relaxed">
+                <li>פתח את דפדפן כרום ב-S25 והקלד בשורת הכתובת: <code class="text-amber-400 bg-amber-400/10 px-1 rounded">chrome://flags</code></li>
+                <li>חפש את האפשרות: <code class="text-blue-400">Generic Sensor Extra Classes</code></li>
+                <li>שנה אותה ל- <code class="text-emerald-400">Enabled</code> והפעל מחדש את הדפדפן (Relaunch).</li>
+            </ol>
+        </div>
+
+        <!-- תיבת שגיאה/התראות מובנית -->
+        <div id="alertBox" class="hidden mt-4 p-3 bg-red-950/40 border border-red-900/50 text-red-200 text-xs rounded-xl text-center"></div>
+    </div>
+
+    <script>
+        // אלמנטים מה-DOM
+        const gaugeProgress = document.getElementById('gaugeProgress');
+        const luxValueText = document.getElementById('luxValue');
+        const sunIcon = document.getElementById('sunIcon');
+        const statusTitle = document.getElementById('statusTitle');
+        const statusDesc = document.getElementById('statusDesc');
+        const statusCard = document.getElementById('statusCard');
+        const alertBox = document.getElementById('alertBox');
+        
+        const btnCamera = document.getElementById('btnCamera');
+        const btnSensor = document.getElementById('btnSensor');
+        const simSlider = document.getElementById('simSlider');
+        const simulatorVal = document.getElementById('simulatorVal');
+        
+        const webcam = document.getElementById('webcam');
+        const cameraPreviewWrapper = document.getElementById('cameraPreviewWrapper');
+        const analysisCanvas = document.getElementById('analysisCanvas');
+        const analysisCtx = analysisCanvas.getContext('2d');
+
+        // הגדרות היסטוריית מדידות (גרף)
+        const historyCanvas = document.getElementById('historyChart');
+        const historyCtx = historyCanvas.getContext('2d');
+        let lightHistory = Array(50).fill(250); // מערך של 50 נקודות היסטוריה
+
+        let cameraInterval = null;
+        let sensorInstance = null;
+
+        // ציור גרף ההיסטוריה המעוצב
+        function drawHistoryChart() {
+            const w = historyCanvas.width = historyCanvas.clientWidth;
+            const h = historyCanvas.height = historyCanvas.clientHeight;
+            
+            historyCtx.clearRect(0, 0, w, h);
+            
+            // יצירת גרדיאנט רקע לגרף
+            const chartGrad = historyCtx.createLinearGradient(0, 0, 0, h);
+            chartGrad.addColorStop(0, 'rgba(59, 130, 246, 0.25)');
+            chartGrad.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+            
+            historyCtx.beginPath();
+            
+            // מציאת מקסימום במערך כדי להתאים את הגובה (מינימום תצוגה של 1000)
+            const maxVal = Math.max(...lightHistory, 1000);
+            
+            for (let i = 0; i < lightHistory.length; i++) {
+                const x = (i / (lightHistory.length - 1)) * w;
+                const y = h - ((lightHistory[i] / maxVal) * (h - 10)) - 5;
+                
+                if (i === 0) {
+                    historyCtx.moveTo(x, y);
+                } else {
+                    historyCtx.lineTo(x, y);
+                }
+            }
+            
+            // קו עליון מודגש
+            historyCtx.strokeStyle = '#3b82f6';
+            historyCtx.lineWidth = 2.5;
+            historyCtx.stroke();
+            
+            // סגירת המסלול למילוי הגרדיאנט
+            historyCtx.lineTo(w, h);
+            historyCtx.lineTo(0, h);
+            historyCtx.closePath();
+            historyCtx.fillStyle = chartGrad;
+            historyCtx.fill();
+        }
+
+        // הוספת נקודה חדשה לגרף ההיסטוריה
+        function pushHistoryData(val) {
+            lightHistory.push(val);
+            if (lightHistory.length > 50) {
+                lightHistory.shift();
+            }
+            drawHistoryChart();
+        }
+
+        // פונקציה לעדכון התצוגה הויזואלית של עוצמת האור
+        function updateLuxDisplay(lux) {
+            lux = Math.round(lux);
+            luxValueText.innerText = lux.toLocaleString();
+            pushHistoryData(lux);
+
+            // עדכון קשת המד העגול (טווח תצוגה מקסימלי מיוצג ב-2500 לוקס)
+            const maxDisplayLux = 2500;
+            const percentage = Math.min(lux / maxDisplayLux, 1);
+            const circumference = 2 * Math.PI * 42; // ~263.8
+            const offset = circumference - (percentage * circumference);
+            gaugeProgress.style.strokeDashoffset = offset;
+
+            // קביעת סטטוס בהתאם לעוצמת הלוקס
+            let icon = '🌑';
+            let title = 'חשיכה מוחלטת';
+            let desc = 'מתאים לשינה עמוקה או צילום לילה.';
+            let cardBg = 'rgba(30, 41, 59, 0.4)';
+            let titleColor = '#94a3b8';
+
+            if (lux > 5 && lux <= 50) {
+                icon = '🌌';
+                title = 'חשוך מאוד (לילה)';
+                desc = 'תאורת רחוב קלה או חדר מוחשך למחצה.';
+                cardBg = 'rgba(23, 37, 84, 0.4)';
+                titleColor = '#60a5fa';
+            } else if (lux > 50 && lux <= 200) {
+                icon = '🕯️';
+                title = 'תאורת בית רגועה';
+                desc = 'מתאים לסלון בשעות הערב, מסדרונות, או אור חמים.';
+                cardBg = 'rgba(124, 45, 18, 0.3)';
+                titleColor = '#f97316';
+            } else if (lux > 200 && lux <= 600) {
+                icon = '💡';
+                title = 'סביבת עבודה מעולה';
+                desc = 'תאורת משרד תקנית, קריאה, כתיבה וריכוז.';
+                cardBg = 'rgba(6, 78, 59, 0.3)';
+                titleColor = '#34d399';
+            } else if (lux > 600 && lux <= 1200) {
+                icon = '☀️';
+                title = 'אור חזק / חלון פתוח';
+                desc = 'תאורה מצוינת לפעילות ספורטיבית, צילום או סטודיו.';
+                cardBg = 'rgba(115, 115, 95, 0.3)';
+                titleColor = '#facc15';
+            } else if (lux > 1200) {
+                icon = '🕶️';
+                title = 'שמש ישירה / מסנוור';
+                desc = 'אור שמש ישיר בחוץ או תאורת זרקור חזקה ביותר!';
+                cardBg = 'rgba(120, 53, 4, 0.4)';
+                titleColor = '#fbbf24';
+            }
+
+            sunIcon.innerText = icon;
+            statusTitle.innerText = title;
+            statusTitle.style.color = titleColor;
+            statusDesc.innerText = desc;
+            statusCard.style.backgroundColor = cardBg;
+        }
+
+        // הפעלת מצב חיישן החומרה של ה-S25 (אם נתמך בדפדפן)
+        btnSensor.addEventListener('click', async () => {
+            stopCameraMode();
+            showAlert(""); // ניקוי התראות קודמות
+            
+            if ('AmbientLightSensor' in window) {
+                try {
+                    // בדיקת הרשאה רשמית
+                    const permission = await navigator.permissions.query({ name: 'ambient-light-sensor' });
+                    
+                    if (permission.state === 'denied') {
+                        showAlert("הגישה לחיישן נחסמה. קרא את ההוראות למטה כדי להפעיל אותה בכרום.");
+                        return;
+                    }
+
+                    if (sensorInstance) {
+                        sensorInstance.stop();
+                    }
+
+                    sensorInstance = new AmbientLightSensor();
+                    sensorInstance.addEventListener('reading', () => {
+                        updateLuxDisplay(sensorInstance.illuminance);
+                    });
+                    sensorInstance.addEventListener('error', (event) => {
+                        showAlert(`שגיאת חיישן: ${event.error.name}. קרא את ההוראות למטה להפעלת החיישן המובנה.`);
+                    });
+                    
+                    sensorInstance.start();
+                    btnSensor.classList.add('ring-4', 'ring-emerald-500/50');
+                    btnCamera.classList.remove('ring-4');
+                } catch (err) {
+                    showAlert("נכשל בהפעלת חיישן החומרה. מומלץ להשתמש ב'מדידת מצלמה' הפשוטה והאמינה!");
+                }
+            } else {
+                showAlert("הדפדפן הנוכחי שלך אינו תומך ישירות בחיישן התאורה. אנא השתמש ב'מדידת מצלמה'.");
+            }
+        });
+
+        // הפעלת מצב ניתוח מצלמה קדמית
+        btnCamera.addEventListener('click', async () => {
+            showAlert(""); // ניקוי התראות
+            if (cameraInterval) {
+                stopCameraMode();
+                return;
+            }
+
+            try {
+                // בקשת זרם וידאו מהמצלמה הקדמית
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user', width: 60, height: 60 } 
+                });
+                webcam.srcObject = stream;
+                
+                cameraPreviewWrapper.classList.remove('hidden');
+                
+                // סריקת בהירות ממוצעת בכל 100 מילישניות
+                cameraInterval = setInterval(analyzeBrightness, 100);
+                
+                btnCamera.innerHTML = "<span>🛑</span> <span>עצור מצלמה</span>";
+                btnCamera.classList.add('bg-red-600', 'hover:from-red-500', 'hover:to-red-600', 'ring-4', 'ring-red-500/50');
+                btnSensor.classList.remove('ring-4');
+            } catch (err) {
+                showAlert("לא ניתן לגשת למצלמה הקדמית. וודא שאישרת הרשאות מצלמה עבור האתר.");
+            }
+        });
+
+        function stopCameraMode() {
+            if (cameraInterval) {
+                clearInterval(cameraInterval);
+                cameraInterval = null;
+            }
+            if (webcam.srcObject) {
+                const tracks = webcam.srcObject.getTracks();
+                tracks.forEach(track => track.stop());
+                webcam.srcObject = null;
+            }
+            cameraPreviewWrapper.classList.add('hidden');
+            btnCamera.innerHTML = "<span>📷</span> <span>מדידת מצלמה</span>";
+            btnCamera.className = "flex flex-col items-center justify-center gap-1 py-3 px-4 bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 active:from-blue-800 active:to-blue-900 text-white font-semibold rounded-2xl shadow-lg transition-all text-sm group";
+        }
+
+        // חישוב והמרת בהירות הפיקסלים (Luminance) מהמצלמה
+        function analyzeBrightness() {
+            if (webcam.readyState === webcam.HAVE_ENOUGH_DATA) {
+                // ציור הפריים הקטן על גבי קנבס הסריקה
+                analysisCtx.drawImage(webcam, 0, 0, analysisCanvas.width, analysisCanvas.height);
+                
+                // שליפת נתוני הפיקסלים בחדר
+                const imgData = analysisCtx.getImageData(0, 0, analysisCanvas.width, analysisCanvas.height);
+                const data = imgData.data;
+                
+                let totalLuminance = 0;
+                
+                // נוסחה אופטית סטנדרטית (Y) המתאימה לרגישות העין האנושית לצבעים
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i+1];
+                    const b = data[i+2];
+                    
+                    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                    totalLuminance += luminance;
+                }
+                
+                const avgLuminance = totalLuminance / (data.length / 4);
+                
+                // תרגום הערך הדיגיטלי (0-255) ללוקס מעובד (0-2500)
+                const estimatedLux = Math.pow(avgLuminance / 255, 1.8) * 2200;
+                updateLuxDisplay(estimatedLux);
+            }
+        }
+
+        // האזנה לסליידר הידני
+        simSlider.addEventListener('input', (e) => {
+            stopCameraMode();
+            if (sensorInstance) {
+                sensorInstance.stop();
+                btnSensor.classList.remove('ring-4');
+            }
+            const val = e.target.value;
+            simulatorVal.innerText = `${val} Lux`;
+            updateLuxDisplay(val);
+        });
+
+        // פונקציית הודעות שגיאה
+        function showAlert(msg) {
+            if (msg) {
+                alertBox.innerText = msg;
+                alertBox.classList.remove('hidden');
+            } else {
+                alertBox.classList.add('hidden');
+            }
+        }
+
+        // ציור ראשוני של הגרף
+        drawHistoryChart();
+        // הפעלת ערך ברירת מחדל
+        updateLuxDisplay(simSlider.value);
+    </script>
+</body>
+</html>
