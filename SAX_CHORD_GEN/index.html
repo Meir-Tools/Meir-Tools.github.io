@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>זיהוי אקורדים מהמיקרופון</title>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      text-align: center;
+    }
+    h1 { margin-top: 0; font-size: 1.5rem; color: #cba6f7; }
+    #status { margin: 16px 0; font-weight: 600; color: #a6adc8; }
+    #error {
+      margin: 12px auto;
+      max-width: 640px;
+      color: #f38ba8;
+      font-weight: 600;
+      white-space: pre-wrap;
+    }
+    .controls { margin: 20px 0; }
+    button {
+      font-size: 1rem;
+      padding: 12px 28px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    #micStart {
+      background: #a6e3a1;
+      color: #1e1e2e;
+    }
+    #micStop {
+      background: #f38ba8;
+      color: #1e1e2e;
+      margin-inline-start: 8px;
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .cards {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 28px 0;
+    }
+    .card {
+      background: #313244;
+      border-radius: 12px;
+      padding: 20px 32px;
+      min-width: 200px;
+    }
+    .card small { display: block; color: #9399b2; margin-bottom: 8px; }
+    .card strong {
+      display: block;
+      font-size: 2.8rem;
+      line-height: 1.1;
+    }
+    #concert { color: #89b4fa; }
+    #alto { color: #a6e3a1; }
+    .meta {
+      color: #9399b2;
+      font-size: 0.95rem;
+      margin-top: 8px;
+    }
+    meter {
+      width: min(320px, 90vw);
+      height: 18px;
+      margin-top: 12px;
+    }
+    .chromagram-box {
+      max-width: 720px;
+      margin: 28px auto 0;
+      background: #313244;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .chromagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .chromagram-header h2 {
+      margin: 0;
+      font-size: 1rem;
+      color: #cba6f7;
+    }
+    .mode-toggle button {
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      background: #45475a;
+      color: #cdd6f4;
+    }
+    .mode-toggle button.active {
+      background: #89b4fa;
+      color: #1e1e2e;
+    }
+    #chordNotes {
+      text-align: right;
+      font-size: 0.85rem;
+      color: #a6e3a1;
+      min-height: 1.2em;
+      margin-bottom: 8px;
+    }
+    #chromaCanvas {
+      width: 100%;
+      height: 220px;
+      display: block;
+      border-radius: 8px;
+      background: #181825;
+    }
+    #history {
+      max-width: 480px;
+      margin: 24px auto 0;
+      text-align: right;
+      list-style: none;
+      padding: 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    #history li {
+      background: #313244;
+      margin-bottom: 6px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    .hint {
+      max-width: 520px;
+      margin: 20px auto 0;
+      font-size: 0.85rem;
+      color: #6c7086;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <h1>זיהוי אקורדים בזמן אמת — מיקרופון</h1>
+
+  <div id="status">טוען את סביבת Python בדפדפן...</div>
+  <div id="error"></div>
+
+  <div class="controls">
+    <button id="micStart" disabled>הפעל מיקרופון</button>
+    <button id="micStop" disabled>עצור</button>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <small>Concert Pitch</small>
+      <strong id="concert">N.C.</strong>
+    </div>
+    <div class="card">
+      <small>Alto Sax (Eb)</small>
+      <strong id="alto">N.C.</strong>
+    </div>
+  </div>
+
+  <div class="meta">
+    <div>ביטחון: <span id="confidence">0%</span></div>
+    <div>עוצמה: <span id="db">—</span> dBFS</div>
+    <meter id="confMeter" min="0" max="1" low="0.4" high="0.7" optimum="0.85" value="0"></meter>
+  </div>
+
+  <div class="chromagram-box">
+    <div class="chromagram-header">
+      <h2>Chromagram — 12 צלילי הסולם</h2>
+      <div class="mode-toggle">
+        <button type="button" id="modeConcert" class="active">Concert</button>
+        <button type="button" id="modeAlto">Alto Sax</button>
+      </div>
+    </div>
+    <div id="chordNotes"></div>
+    <canvas id="chromaCanvas" width="680" height="220"></canvas>
+  </div>
+
+  <ul id="history"></ul>
+
+  <p class="hint">
+    הדפדפן יבקש הרשאת מיקרофון. נגן ליד המיקרופון או השמע מוזיקה — זיהוי אקורדים מהרמקולים
+    אינו נתמך בדפדפן (בניגוד לאפליקציית הדסקטופ).
+  </p>
+
+  <script>
+    let pyodide;
+    let analyzeChunk;
+    let resetSmoothing;
+
+    let audioCtx = null;
+    let micStream = null;
+    let processor = null;
+    let analysisTimer = null;
+    let ring = null;
+    let writeIdx = 0;
+    let isAnalyzing = false;
+    let lastHistoryChord = "";
+    let lastHistoryTime = 0;
+    let pitchMode = "concert";
+    let lastDrawState = null;
+
+    const NOTE_NAMES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const ALTO_PREFERRED_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"];
+
+    const PYODIDE_INDEX = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+    const TARGET_SR = 22050;
+    const BUFFER_SEC = 1.5;
+    const HOP_MS = 150;
+
+    function setStatus(msg) {
+      document.getElementById("status").innerText = msg;
+      console.log("[status]", msg);
+    }
+
+    function showError(err) {
+      const msg = err && err.stack ? err.stack : String(err);
+      document.getElementById("error").innerText = msg;
+      console.error(err);
+    }
+
+    function clearError() {
+      document.getElementById("error").innerText = "";
+    }
+
+    async function installPythonModule(relativePath, vfsPath) {
+      const response = await fetch(relativePath);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${relativePath}: HTTP ${response.status}`);
+      }
+      pyodide.FS.writeFile(vfsPath, await response.text());
+    }
+
+    function drawChromagram(result) {
+      lastDrawState = result;
+      const canvas = document.getElementById("chromaCanvas");
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const width = rect.width;
+      const height = rect.height;
+      const chroma = result.chroma || new Array(12).fill(0);
+      const activeSet = new Set(result.active_pitch_indices || []);
+      const intervalMap = {};
+      for (const n of result.chord_notes || []) {
+        intervalMap[n.pitch_idx] = n.interval;
+      }
+
+      const notesEl = document.getElementById("chordNotes");
+      if (result.concert_chord !== "N.C." && result.chord_notes && result.chord_notes.length) {
+        if (pitchMode === "alto") {
+          notesEl.textContent =
+            "הרכב צלילי אלט: " +
+            result.chord_notes.map((n) => `${n.alto_note} (${n.interval})`).join(" · ");
+        } else {
+          notesEl.textContent =
+            "הרכב הצלילים: " +
+            result.chord_notes.map((n) => `${n.concert_note} (${n.interval})`).join(" · ");
+        }
+      } else {
+        notesEl.textContent = "";
+      }
+
+      ctx.clearRect(0, 0, width, height);
+      const padding = 10;
+      const topMargin = 28;
+      const bottomMargin = 42;
+      const usableW = width - padding * 2;
+      const usableH = height - topMargin - bottomMargin;
+      const nBars = 12;
+      const barGap = 5;
+      const barWidth = Math.max(1, (usableW - (nBars - 1) * barGap) / nBars);
+      const maxVal = Math.max(...chroma, 1e-6);
+
+      for (let i = 0; i < nBars; i++) {
+        const val = chroma[i] || 0;
+        const normVal = Math.min(1, Math.max(0, val / maxVal));
+        const barH = normVal * usableH;
+        const x = padding + i * (barWidth + barGap);
+        const y = topMargin + (usableH - barH);
+        const isActive = activeSet.has(i);
+        const interval = intervalMap[i];
+
+        if (isActive) {
+          ctx.fillStyle = interval === "Root" ? "#f9e2af" : "#a6e3a1";
+          ctx.strokeStyle = "#f5e0dc";
+          ctx.lineWidth = 2;
+        } else {
+          ctx.fillStyle = "rgba(49, 50, 68, 0.55)";
+          ctx.strokeStyle = "transparent";
+        }
+
+        roundRect(ctx, x, y, barWidth, barH, 4);
+        ctx.fill();
+        if (isActive) ctx.stroke();
+
+        if (isActive && interval) {
+          ctx.fillStyle = interval === "Root" ? "#f9e2af" : "#a6e3a1";
+          ctx.font = "bold 10px Segoe UI, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(interval, x + barWidth / 2, Math.max(topMargin - 6, y - 6));
+        }
+
+        const concertNote = NOTE_NAMES_SHARP[i];
+        const altoNote = ALTO_PREFERRED_NAMES[(i + 9) % 12];
+        const topNote = pitchMode === "alto" ? altoNote : concertNote;
+        const subNote = pitchMode === "alto" ? `(${concertNote})` : `(${altoNote})`;
+
+        ctx.font = `${isActive ? "bold" : "normal"} 11px Segoe UI, sans-serif`;
+        ctx.fillStyle = isActive ? "#f5e0dc" : pitchMode === "alto" ? "#a6e3a1" : "#89b4fa";
+        ctx.textAlign = "center";
+        ctx.fillText(topNote, x + barWidth / 2, height - 26);
+        ctx.font = "10px Segoe UI, sans-serif";
+        ctx.fillStyle = isActive && pitchMode !== "alto" ? "#a6e3a1" : "#585b70";
+        ctx.fillText(subNote, x + barWidth / 2, height - 10);
+      }
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      if (h <= 0) return;
+      r = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function updateUI(result) {
+      document.getElementById("concert").innerText = result.concert_chord;
+      document.getElementById("alto").innerText = result.alto_chord;
+      document.getElementById("confidence").innerText =
+        Math.round(result.confidence * 100) + "%";
+      document.getElementById("db").innerText = result.db_level.toFixed(1);
+      document.getElementById("confMeter").value = result.confidence;
+      drawChromagram(result);
+
+      const now = Date.now();
+      if (
+        result.concert_chord !== "N.C." &&
+        result.confidence > 0.40 &&
+        (result.concert_chord !== lastHistoryChord || now - lastHistoryTime > 2000)
+      ) {
+        lastHistoryChord = result.concert_chord;
+        lastHistoryTime = now;
+        const li = document.createElement("li");
+        const t = new Date().toLocaleTimeString("he-IL");
+        li.textContent =
+          `${t} — ${result.concert_chord} / אלט: ${result.alto_chord} (${Math.round(result.confidence * 100)}%)`;
+        const list = document.getElementById("history");
+        list.prepend(li);
+        while (list.children.length > 30) list.removeChild(list.lastChild);
+      }
+    }
+
+    function getOrderedRing() {
+      const ordered = new Float32Array(ring.length);
+      for (let i = 0; i < ring.length; i++) {
+        ordered[i] = ring[(writeIdx + i) % ring.length];
+      }
+      return ordered;
+    }
+
+    async function runMicAnalysis() {
+      if (!analyzeChunk || isAnalyzing || !ring) return;
+      isAnalyzing = true;
+      try {
+        const samples = getOrderedRing();
+        const pyResult = analyzeChunk(samples, audioCtx.sampleRate);
+        const result = pyResult.toJs({
+          dict_converter: Object.fromEntries,
+          create_pyproxies: false,
+        });
+        pyResult.destroy();
+        updateUI(result);
+      } catch (err) {
+        showError(err);
+      } finally {
+        isAnalyzing = false;
+      }
+    }
+
+    async function startMic() {
+      clearError();
+      if (micStream) return;
+
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
+        video: false,
+      });
+
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+        sampleRate: TARGET_SR,
+      });
+      const sr = audioCtx.sampleRate;
+      ring = new Float32Array(Math.floor(sr * BUFFER_SEC));
+      writeIdx = 0;
+
+      resetSmoothing();
+      lastHistoryChord = "";
+      lastHistoryTime = 0;
+
+      const source = audioCtx.createMediaStreamSource(micStream);
+      processor = audioCtx.createScriptProcessor(4096, 1, 1);
+      processor.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0);
+        for (let i = 0; i < input.length; i++) {
+          ring[writeIdx] = input[i];
+          writeIdx = (writeIdx + 1) % ring.length;
+        }
+      };
+
+      const silent = audioCtx.createGain();
+      silent.gain.value = 0;
+      source.connect(processor);
+      processor.connect(silent);
+      silent.connect(audioCtx.destination);
+
+      if (audioCtx.state === "suspended") await audioCtx.resume();
+
+      analysisTimer = setInterval(runMicAnalysis, HOP_MS);
+
+      document.getElementById("micStart").disabled = true;
+      document.getElementById("micStop").disabled = false;
+      setStatus(`מאזין… (${sr} Hz) — נגן או שירו ליד המיקרופון`);
+    }
+
+    function stopMic() {
+      if (analysisTimer) {
+        clearInterval(analysisTimer);
+        analysisTimer = null;
+      }
+      if (processor) {
+        processor.disconnect();
+        processor.onaudioprocess = null;
+        processor = null;
+      }
+      if (audioCtx) {
+        audioCtx.close();
+        audioCtx = null;
+      }
+      if (micStream) {
+        micStream.getTracks().forEach((t) => t.stop());
+        micStream = null;
+      }
+      ring = null;
+      writeIdx = 0;
+
+      document.getElementById("micStart").disabled = false;
+      document.getElementById("micStop").disabled = true;
+      setStatus("המיקרופון כובה. לחץ 'הפעל מיקרופון' להמשך.");
+    }
+
+    async function init() {
+      try {
+        if (typeof loadPyodide !== "function") {
+          throw new Error(
+            "Pyodide לא נטען. בדוק חיבור לאינטרנט (cdn.jsdelivr.net) או כבה חוסם פרסומות."
+          );
+        }
+
+        setStatus("שלב 1/4: מוריד Pyodide (~10MB)...");
+        pyodide = await loadPyodide({ indexURL: PYODIDE_INDEX });
+
+        setStatus("שלב 2/4: מוריד numpy...");
+        await pyodide.loadPackage("numpy");
+
+        setStatus("שלב 3/4: מוריד scipy (~15MB, 2-5 דקות)...");
+        await pyodide.loadPackage("scipy");
+
+        setStatus("שלב 4/4: טוען קוד Python...");
+        pyodide.FS.mkdir("/python");
+        await installPythonModule("./python/chord_detector.py", "/python/chord_detector.py");
+        await installPythonModule("./python/chroma.py", "/python/chroma.py");
+        await installPythonModule("./python/analyze.py", "/python/analyze.py");
+        await pyodide.runPythonAsync(`
+import sys
+sys.path.insert(0, "/python")
+from analyze import analyze_audio_chunk, reset_smoothing
+`);
+
+        analyzeChunk = pyodide.globals.get("analyze_audio_chunk");
+        resetSmoothing = pyodide.globals.get("reset_smoothing");
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("הדפדפן לא תומך בגישה למיקרופון.");
+        }
+
+        setStatus("מוכן! לחץ 'הפעל מיקרופון'.");
+        document.getElementById("micStart").disabled = false;
+        drawChromagram({
+          concert_chord: "N.C.",
+          chroma: new Array(12).fill(0),
+          chord_notes: [],
+          active_pitch_indices: [],
+        });
+      } catch (err) {
+        showError(err);
+        setStatus("שגיאה בטעינה");
+      }
+    }
+
+    document.getElementById("micStart").addEventListener("click", () => {
+      startMic().catch((err) => {
+        showError(err);
+        setStatus("לא ניתן לגשת למיקרופון");
+      });
+    });
+    document.getElementById("micStop").addEventListener("click", stopMic);
+
+    document.getElementById("modeConcert").addEventListener("click", () => {
+      pitchMode = "concert";
+      document.getElementById("modeConcert").classList.add("active");
+      document.getElementById("modeAlto").classList.remove("active");
+      if (lastDrawState) drawChromagram(lastDrawState);
+    });
+    document.getElementById("modeAlto").addEventListener("click", () => {
+      pitchMode = "alto";
+      document.getElementById("modeAlto").classList.add("active");
+      document.getElementById("modeConcert").classList.remove("active");
+      if (lastDrawState) drawChromagram(lastDrawState);
+    });
+    window.addEventListener("resize", () => {
+      if (lastDrawState) drawChromagram(lastDrawState);
+    });
+
+    init();
+  </script>
+</body>
+</html>
