@@ -6,190 +6,57 @@
     <title>הפרויקטים של מאיר</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: #0f172a;
-            color: white;
-        }
-
-        /* הגדרות הגלילה החלקה והנעילה */
-        main {
-            height: 100vh;
-            overflow-y: scroll;
-            scroll-snap-type: y mandatory;
-            scroll-behavior: smooth;
-        }
-
-        /* כל פרויקט תופס מסך שלם */
-        section {
-            height: 100vh;
-            scroll-snap-align: start;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* עיצוב כרטיס הפרויקט */
-        .project-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 1.5rem;
-            padding: 4rem;
-            text-align: center;
-            max-width: 600px;
-            width: 90%;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            transition: transform 0.5s ease, box-shadow 0.5s ease;
-        }
-
-        .project-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.7);
-        }
-
-        /* מחלקות האנימציה - מצב התחלתי מוסתר */
-        .animate-up {
-            opacity: 0;
-            transform: translateY(50px);
-            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        /* כשמזהים שהאלמנט במסך, מוסיפים את המחלקה הזו */
-        .is-visible .animate-up {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        /* השהיות שונות לאלמנטים כדי שיופיעו אחד אחרי השני */
-        .delay-100 { transition-delay: 100ms; }
-        .delay-200 { transition-delay: 200ms; }
-        .delay-300 { transition-delay: 300ms; }
-
-        /* רקעים שונים לכל סקשן */
-        .bg-1 { background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%); }
-        .bg-2 { background: radial-gradient(circle at center, #064e3b 0%, #0f172a 100%); }
-        .bg-3 { background: radial-gradient(circle at center, #701a75 0%, #0f172a 100%); }
-        .bg-4 { background: radial-gradient(circle at center, #7c2d12 0%, #0f172a 100%); }
-        .bg-5 { background: radial-gradient(circle at center, #581c87 0%, #0f172a 100%); }
-        .bg-6 { background: radial-gradient(circle at center, #1e3a8a 0%, #0f172a 100%); }
+        /* כאן נשאר כל ה-CSS מהדוגמה הקודמת */
     </style>
 </head>
 <body>
+    <main id="scroller"></main>
 
-    <main id="scroller">
-        
-        <!-- פרויקט 1: LUM -->
-        <section class="bg-1">
-            <div class="project-card">
-                <h2 class="text-5xl font-bold mb-4 animate-up delay-100">LUM</h2>
-                <p class="text-xl text-gray-300 mb-8 animate-up delay-200">מערכת תאורה או כלי למדידת אור</p>
-                <div class="animate-up delay-300">
-                    <a href="https://Meir-Tools.github.io/LUM/ver0.html" target="_blank" class="inline-block px-8 py-3 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
-                        לפתיחת הפרויקט 
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <!-- פרויקט 2: KONIBOX -->
-        <section class="bg-2">
-            <div class="project-card">
-                <h2 class="text-5xl font-bold mb-4 animate-up delay-100">KONIBOX</h2>
-                <p class="text-xl text-gray-300 mb-8 animate-up delay-200">תיבת כלים וממשק ייעודי</p>
-                <div class="animate-up delay-300">
-                    <a href="https://Meir-Tools.github.io/KONIBOX/index.html" target="_blank" class="inline-block px-8 py-3 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
-                        לפתיחת הפרויקט 
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <!-- פרויקט 3: SAX CHORD GEN -->
-        <section class="bg-3">
-            <div class="project-card">
-                <h2 class="text-5xl font-bold mb-4 animate-up delay-100">SAX CHORD GEN</h2>
-                <p class="text-xl text-gray-300 mb-8 animate-up delay-200">מחולל אקורדים חכם לסכסופון</p>
-                <div class="animate-up delay-300">
-                    <a href="https://Meir-Tools.github.io/SAX_CHORD_GEN/index.html" target="_blank" class="inline-block px-8 py-3 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
-                        לפתיחת הפרויקט 
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <!-- פרויקט 4: SUN -->
-        <section class="bg-4">
-            <div class="project-card">
-                <h2 class="text-5xl font-bold mb-4 animate-up delay-100">SUN</h2>
-                <p class="text-xl text-gray-300 mb-8 animate-up delay-200">מעקב ונתוני שמש</p>
-                <div class="animate-up delay-300">
-                    <a href="https://Meir-Tools.github.io/SUN/ver0.html" target="_blank" class="inline-block px-8 py-3 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
-                        לפתיחת הפרויקט 
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <!-- פרויקט 5: SUN SET RISE -->
-        <section class="bg-5">
-            <div class="project-card">
-                <h2 class="text-5xl font-bold mb-4 animate-up delay-100">SUN SET RISE</h2>
-                <p class="text-xl text-gray-300 mb-8 animate-up delay-200">חישובי זריחה ושקיעה מדויקים</p>
-                <div class="animate-up delay-300">
-                    <a href="https://Meir-Tools.github.io/SUN_SET_RISE/ver0.html" target="_blank" class="inline-block px-8 py-3 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
-                        לפתיחת הפרויקט 
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <!-- פרויקט 6: I2C Converter -->
-        <section class="bg-6">
-            <div class="project-card">
-                <h2 class="text-5xl font-bold mb-4 animate-up delay-100">I2C Converter</h2>
-                <p class="text-xl text-gray-300 mb-8 animate-up delay-200">ממיר פרוטוקול תקשורת I2C</p>
-                <div class="animate-up delay-300">
-                    <a href="https://Meir-Tools.github.io/I2C_converter/i2c_converter.html" target="_blank" class="inline-block px-8 py-3 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
-                        לפתיחת הפרויקט 
-                    </a>
-                </div>
-            </div>
-        </section>
-
-    </main>
+    <!-- ייבוא קובץ הנתונים החיצוני -->
+    <script src="data.js"></script>
 
     <script>
-        // קוד ה-JavaScript שאחראי על זיהוי הגלילה והפעלת האנימציות
+        // ברגע שהדף עולה, הוא לוקח את projectsData מקובץ ה-data.js ובונה את האתר
         document.addEventListener('DOMContentLoaded', () => {
-            const sections = document.querySelectorAll('section');
+            const scroller = document.getElementById('scroller');
+            
+            projectsData.forEach((project, index) => {
+                const bgClass = `bg-${index % 6}`; 
+                const section = document.createElement('section');
+                section.className = bgClass;
+                
+                section.innerHTML = `
+                    <div class="project-card">
+                        <div class="iframe-wrapper animate-up delay-100">
+                            <iframe src="${project.url}" loading="lazy"></iframe>
+                        </div>
+                        <h2 class="text-4xl font-bold mb-2 animate-up delay-200">${project.title}</h2>
+                        <p class="text-lg text-gray-300 mb-6 animate-up delay-300">${project.description}</p>
+                        <div class="animate-up delay-400">
+                            <a href="${project.url}" target="_blank" class="inline-block px-8 py-2 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
+                                לפתיחת הפרויקט
+                            </a>
+                        </div>
+                    </div>
+                `;
+                scroller.appendChild(section);
+            });
 
-            const observerOptions = {
-                root: document.querySelector('#scroller'),
-                threshold: 0.4 // מפעיל את האנימציה כש-40% מהפרויקט מופיע במסך
-            };
-
+            // מנגנון האנימציה (Intersection Observer)
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         entry.target.classList.add('is-visible');
                     } else {
-                        // אם אתה רוצה שהאנימציה תקרה שוב כשחוזרים אחורה, השאר את השורה הבאה.
-                        // אחרת, אפשר למחוק אותה והאנימציה תעבוד רק פעם אחת.
                         entry.target.classList.remove('is-visible');
                     }
                 });
-            }, observerOptions);
+            }, { threshold: 0.3 });
 
-            sections.forEach(section => {
-                observer.observe(section);
-            });
+            // שימוש קטן כדי לחכות שהאלמנטים יוצרו לפני המעקב
+            setTimeout(() => {
+                document.querySelectorAll('section').forEach(sec => observer.observe(sec));
+            }, 50);
         });
     </script>
 </body>

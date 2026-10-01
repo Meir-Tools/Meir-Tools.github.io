@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>הפרויקטים של מאיר</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #0f172a;
+            color: white;
+        }
+
+        /* הגדרות הגלילה החלקה והנעילה */
+        main {
+            height: 100vh;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+        }
+
+        /* כל פרויקט תופס מסך שלם */
+        section {
+            height: 100vh;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* עיצוב כרטיס הפרויקט מורחב כדי להכיל תצוגה מקדימה */
+        .project-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            text-align: center;
+            max-width: 900px;
+            width: 90%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: transform 0.5s ease, box-shadow 0.5s ease;
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.7);
+        }
+
+        /* עטיפת האתר המוטמע */
+        .iframe-wrapper {
+            width: 100%;
+            height: 350px;
+            border-radius: 1rem;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            background-color: #ffffff; /* למקרה שלרקע האתר המקורי אין צבע */
+            border: 1px solid rgba(255,255,255,0.2);
+            position: relative;
+        }
+
+        .iframe-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            /* קריטי: מונע מהגלילה להיתקע בתוך המסגרת הפנימית */
+            pointer-events: none; 
+        }
+
+        /* מחלקות האנימציה - מצב התחלתי מוסתר */
+        .animate-up {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* כשמזהים שהאלמנט במסך, מוסיפים את המחלקה הזו */
+        .is-visible .animate-up {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* השהיות שונות לאלמנטים כדי שיופיעו אחד אחרי השני */
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+        .delay-400 { transition-delay: 400ms; }
+
+        /* רקעים שונים לכל סקשן */
+        .bg-1 { background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%); }
+        .bg-2 { background: radial-gradient(circle at center, #064e3b 0%, #0f172a 100%); }
+        .bg-3 { background: radial-gradient(circle at center, #701a75 0%, #0f172a 100%); }
+        .bg-4 { background: radial-gradient(circle at center, #7c2d12 0%, #0f172a 100%); }
+        .bg-5 { background: radial-gradient(circle at center, #581c87 0%, #0f172a 100%); }
+        .bg-6 { background: radial-gradient(circle at center, #1e3a8a 0%, #0f172a 100%); }
+    </style>
+</head>
+<body>
+
+    <main id="scroller">
+        
+        <!-- פרויקט 1: LUM -->
+        <section class="bg-1">
+            <div class="project-card">
+                <div class="iframe-wrapper animate-up delay-100">
+                    <iframe src="https://Meir-Tools.github.io/LUM/ver0.html" loading="lazy"></iframe>
+                </div>
+                <h2 class="text-4xl font-bold mb-2 animate-up delay-200">LUM</h2>
+                <p class="text-lg text-gray-300 mb-6 animate-up delay-300">מערכת תאורה או כלי למדידת אור</p>
+                <div class="animate-up delay-400">
+                    <a href="https://Meir-Tools.github.io/LUM/ver0.html" target="_blank" class="inline-block px-8 py-2 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
+                        לפתיחת הפרויקט המלא
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- פרויקט 2: KONIBOX -->
+        <section class="bg-2">
+            <div class="project-card">
+                <div class="iframe-wrapper animate-up delay-100">
+                    <iframe src="https://Meir-Tools.github.io/KONIBOX/index.html" loading="lazy"></iframe>
+                </div>
+                <h2 class="text-4xl font-bold mb-2 animate-up delay-200">KONIBOX</h2>
+                <p class="text-lg text-gray-300 mb-6 animate-up delay-300">תיבת כלים וממשק ייעודי</p>
+                <div class="animate-up delay-400">
+                    <a href="https://Meir-Tools.github.io/KONIBOX/index.html" target="_blank" class="inline-block px-8 py-2 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
+                        לפתיחת הפרויקט המלא
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- פרויקט 3: SAX CHORD GEN -->
+        <section class="bg-3">
+            <div class="project-card">
+                <div class="iframe-wrapper animate-up delay-100">
+                    <iframe src="https://Meir-Tools.github.io/SAX_CHORD_GEN/index.html" loading="lazy"></iframe>
+                </div>
+                <h2 class="text-4xl font-bold mb-2 animate-up delay-200">SAX CHORD GEN</h2>
+                <p class="text-lg text-gray-300 mb-6 animate-up delay-300">מחולל אקורדים חכם לסכסופון</p>
+                <div class="animate-up delay-400">
+                    <a href="https://Meir-Tools.github.io/SAX_CHORD_GEN/index.html" target="_blank" class="inline-block px-8 py-2 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
+                        לפתיחת הפרויקט המלא
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- פרויקט 4: SUN -->
+        <section class="bg-4">
+            <div class="project-card">
+                <div class="iframe-wrapper animate-up delay-100">
+                    <iframe src="https://Meir-Tools.github.io/SUN/ver0.html" loading="lazy"></iframe>
+                </div>
+                <h2 class="text-4xl font-bold mb-2 animate-up delay-200">SUN</h2>
+                <p class="text-lg text-gray-300 mb-6 animate-up delay-300">מעקב ונתוני שמש</p>
+                <div class="animate-up delay-400">
+                    <a href="https://Meir-Tools.github.io/SUN/ver0.html" target="_blank" class="inline-block px-8 py-2 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
+                        לפתיחת הפרויקט המלא
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- פרויקט 5: SUN SET RISE -->
+        <section class="bg-5">
+            <div class="project-card">
+                <div class="iframe-wrapper animate-up delay-100">
+                    <iframe src="https://Meir-Tools.github.io/SUN_SET_RISE/ver0.html" loading="lazy"></iframe>
+                </div>
+                <h2 class="text-4xl font-bold mb-2 animate-up delay-200">SUN SET RISE</h2>
+                <p class="text-lg text-gray-300 mb-6 animate-up delay-300">חישובי זריחה ושקיעה מדויקים</p>
+                <div class="animate-up delay-400">
+                    <a href="https://Meir-Tools.github.io/SUN_SET_RISE/ver0.html" target="_blank" class="inline-block px-8 py-2 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
+                        לפתיחת הפרויקט המלא
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- פרויקט 6: I2C Converter -->
+        <section class="bg-6">
+            <div class="project-card">
+                <div class="iframe-wrapper animate-up delay-100">
+                    <iframe src="https://Meir-Tools.github.io/I2C_converter/i2c_converter.html" loading="lazy"></iframe>
+                </div>
+                <h2 class="text-4xl font-bold mb-2 animate-up delay-200">I2C Converter</h2>
+                <p class="text-lg text-gray-300 mb-6 animate-up delay-300">ממיר פרוטוקול תקשורת I2C</p>
+                <div class="animate-up delay-400">
+                    <a href="https://Meir-Tools.github.io/I2C_converter/i2c_converter.html" target="_blank" class="inline-block px-8 py-2 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors">
+                        לפתיחת הפרויקט המלא
+                    </a>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sections = document.querySelectorAll('section');
+
+            const observerOptions = {
+                root: document.querySelector('#scroller'),
+                threshold: 0.3 
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                    } else {
+                        entry.target.classList.remove('is-visible');
+                    }
+                });
+            }, observerOptions);
+
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+        });
+    </script>
+</body>
+</html>
