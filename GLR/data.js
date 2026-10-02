@@ -9,6 +9,11 @@ const projectsData = [
         title: "KONIBOX",
         description: "תיבת כלים וממשק ייעודי",
         url: "https://Meir-Tools.github.io/KONIBOX/index.html"
+    },
+    {
+        title: "SAX_CHORD_GEN",
+        description: "תיבת כלים וממשק ייעודי",
+        url: "https://Meir-Tools.github.io/SAX_CHORD_GEN/index.html"
     }
     // אפשר להוסיף עוד פרויקטים כאן למטה באותו פורמט
 ];
