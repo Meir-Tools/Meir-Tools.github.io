@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>גלריה סורקת - תמונות וקובצי URL</title>
+    <title>גלריה סורקת - תמונות וקישורים (לשונית חדשה)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -46,7 +46,24 @@
         }
         .slide-container.active img.slide-content { transform: scale(1.08); }
 
-        iframe.slide-content { width: 100%; height: 100%; border: none; }
+        /* ביטול אינטראקציה על ה-iframe עצמו */
+        iframe.slide-content { 
+            width: 100%; height: 100%; border: none; 
+            pointer-events: none; 
+        }
+
+        /* שכבה שקופה מעל הקישור שלחיצה עליה פותחת חלון חדש */
+        .iframe-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 5; cursor: pointer;
+        }
+        /* אייקון רמז קטן שיופיע במעבר עכבר על השכבה */
+        .iframe-overlay:hover::after {
+            content: 'פתח קישור בחלון חדש ↗';
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7); color: white; padding: 10px 20px;
+            border-radius: 30px; font-size: 16px; pointer-events: none;
+        }
 
         .nav-btn {
             position: absolute; top: 50%; transform: translateY(-50%); z-index: 10;
@@ -71,11 +88,11 @@
 </head>
 <body>
 
-    <h2>סורק אוטומטי לגלריה</h2>
+    <h2>גלריה חכמה ובטוחה</h2>
 
     <div class="loader-container" id="loading-screen">
         <div class="spinner"></div>
-        <div id="status-text">סורק קבצים מתיקיית img... (קובץ 1)</div>
+        <div id="status-text">סורק קבצים מתיקיית img...</div>
     </div>
 
     <div class="slideshow-container" id="slideshow" style="display:none;">
@@ -91,46 +108,40 @@
         let currentIndex = 1;
         let currentSlideIndex = 0;
         let slideInterval;
+        const slideDuration = 4000; // זמן הצגת כל שקופית (4 שניות)
 
-        // הפונקציה המרכזית שסורקת קובץ אחרי קובץ
         function checkNextMedia() {
-            document.getElementById('status-text').innerText = `סורק קבצים מתיקיית img... (בודק את מס' ${currentIndex})`;
+            document.getElementById('status-text').innerText = `סורק קבצים... (בודק את מס' ${currentIndex})`;
             
             const pngPath = `${folder}${currentIndex}.png`;
             const urlPath = `${folder}${currentIndex}.url`;
 
             const img = new Image();
             
-            // 1. קודם מנסים לטעון כתמונה (.png)
             img.onload = function() {
                 mediaList.push({ type: 'image', src: pngPath });
                 currentIndex++;
-                checkNextMedia(); // ממשיכים לבא בתור
+                checkNextMedia(); 
             };
             
-            // 2. אם התמונה לא קיימת, ננסה לחפש קובץ .url
             img.onerror = async function() {
                 try {
                     const response = await fetch(urlPath);
                     if (response.ok) {
                         const text = await response.text();
-                        // פונקציית חילוץ הלינק מתוך קובץ הטקסט
                         const extractedUrl = parseUrlFile(text);
                         
                         if (extractedUrl) {
-                            // אם זה יוטיוב רגיל, נמיר אותו ל-embed כדי שיוכל לעבוד באייפריים
                             const finalUrl = convertToEmbedIfYouTube(extractedUrl);
-                            mediaList.push({ type: 'iframe', src: finalUrl });
+                            // שומרים גם את הקישור המקורי כדי שנוכל לפתוח אותו בלשונית חדשה
+                            mediaList.push({ type: 'iframe', src: finalUrl, originalUrl: extractedUrl });
                             currentIndex++;
-                            checkNextMedia(); // ממשיכים לבא בתור
+                            checkNextMedia(); 
                             return;
                         }
                     }
-                } catch (error) {
-                    // התעלמות משגיאות רשת (כמו 404) כדי לאפשר לסקריפט לסיים בצורה חלקה
-                }
+                } catch (error) {}
 
-                // 3. אם גם .png וגם .url לא קיימים (או שה-fetch נכשל), סיימנו את הרצף
                 if (mediaList.length > 0) {
                     initSlideshow();
                 } else {
@@ -141,24 +152,18 @@
             img.src = pngPath;
         }
 
-        // פונקציה שעושה Parsing לקובץ ה-.url כדי למצוא את הכתובת
         function parseUrlFile(fileContent) {
-            // מחפש שורה שמתחילה ב- URL= (לא משנה אם אותיות גדולות או קטנות)
             const match = fileContent.match(/^URL=(.+)$/im);
             return match ? match[1].trim() : null;
         }
 
-        // המרה ליוטיוב כדי שיוצג בתוך ה-Iframe
         function convertToEmbedIfYouTube(url) {
             const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
             const match = url.match(ytRegex);
-            if (match && match[1]) {
-                return `https://www.youtube.com/embed/${match[1]}`;
-            }
+            if (match && match[1]) return `https://www.youtube.com/embed/${match[1]}?autoplay=0&mute=1`; // מושתק וללא הפעלה אוטומטית כי זה רק רקע
             return url;
         }
 
-        // בניית המצגת (כמו בגרסאות הקודמות)
         function initSlideshow() {
             document.getElementById('loading-screen').style.display = 'none';
             const slideshow = document.getElementById('slideshow');
@@ -171,24 +176,27 @@
                 const slideContainer = document.createElement('div');
                 slideContainer.className = 'slide-container';
                 
-                let contentElement;
-
                 if (item.type === 'image') {
-                    contentElement = document.createElement('img');
-                    contentElement.src = item.src;
+                    const imgEl = document.createElement('img');
+                    imgEl.src = item.src;
+                    imgEl.className = 'slide-content';
+                    slideContainer.appendChild(imgEl);
                 } else if (item.type === 'iframe') {
-                    contentElement = document.createElement('iframe');
-                    contentElement.src = item.src;
-                    contentElement.setAttribute('loading', 'lazy');
-                    if (item.src.includes('youtube')) {
-                        contentElement.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-                        contentElement.allowFullscreen = true;
-                    }
+                    // יצירת ה-Iframe
+                    const iframeEl = document.createElement('iframe');
+                    iframeEl.src = item.src;
+                    iframeEl.className = 'slide-content';
+                    iframeEl.setAttribute('loading', 'lazy');
+                    
+                    // יצירת השכבה השקופה מעל ה-Iframe
+                    const overlay = document.createElement('div');
+                    overlay.className = 'iframe-overlay';
+                    overlay.onclick = () => window.open(item.originalUrl, '_blank'); // פתיחה בלשונית חדשה
+                    
+                    slideContainer.appendChild(iframeEl);
+                    slideContainer.appendChild(overlay); // השכבה מונחת מעל האייפריים
                 }
                 
-                contentElement.className = 'slide-content';
-                slideContainer.appendChild(contentElement);
-
                 const dotElement = document.createElement('div');
                 dotElement.className = 'dot';
                 dotElement.onclick = () => goToSlide(index);
@@ -204,10 +212,9 @@
 
             startAutoSlide();
 
+            // עצירת המצגת רק בזמן ריחוף (חזרה אוטומטית כשיוצאים)
             slideshow.addEventListener('mouseenter', stopAutoSlide);
-            slideshow.addEventListener('mouseleave', () => {
-                if (mediaList[currentSlideIndex].type !== 'iframe') startAutoSlide();
-            });
+            slideshow.addEventListener('mouseleave', startAutoSlide);
         }
 
         function changeSlide(direction) {
@@ -227,21 +234,19 @@
             slides[currentSlideIndex].classList.add("active");
             dots[currentSlideIndex].classList.add("active");
 
-            if (mediaList[currentSlideIndex].type === 'iframe') {
-                stopAutoSlide();
-            } else {
-                startAutoSlide();
-            }
+            // המצגת לא נתקעת יותר! הטיימר מתאפס וממשיך לרוץ על כל השקופיות
+            startAutoSlide();
         }
 
         function startAutoSlide() {
             stopAutoSlide(); 
-            slideInterval = setInterval(() => { changeSlide(1); }, 4000); 
+            slideInterval = setInterval(() => { changeSlide(1); }, slideDuration); 
         }
 
-        function stopAutoSlide() { clearInterval(slideInterval); }
+        function stopAutoSlide() { 
+            clearInterval(slideInterval); 
+        }
 
-        // התחלת הסריקה מיד עם טעינת הדף
         window.onload = checkNextMedia;
     </script>
 </body>
