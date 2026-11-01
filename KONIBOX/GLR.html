@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>גלריית תמונות דינמית ומעוצבת</title>
+    <style>
+        /* איפוס ועיצוב הרקע של הדף */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #141e30, #243b55); /* רקע מודרני כהה */
+            color: #ffffff;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        h2 {
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* אנימציית טעינה בזמן סריקת התמונות */
+        .loader-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* קונטיינר המצגת */
+        .slideshow-container {
+            width: 90%;
+            max-width: 800px;
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            background-color: #000;
+        }
+
+        /* שמירה על יחס ממדים אחיד (16:9) */
+        .slides-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+        }
+
+        /* עיצוב התמונות והאפקטים */
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transform: scale(1);
+            transition: opacity 1s ease-in-out, transform 6s linear; /* אפקט פייד פנימה וזום */
+            z-index: 0;
+        }
+
+        .slide.active {
+            opacity: 1;
+            transform: scale(1.08); /* תנועת זום איטית קדימה */
+            z-index: 1;
+        }
+
+        /* כפתורי ניווט - עיצוב זכוכית */
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .prev { right: 20px; }
+        .next { left: 20px; }
+
+        /* נקודות ניווט בתחתית */
+        .dots-container {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .dot.active, .dot:hover {
+            background: #ffffff;
+            transform: scale(1.3);
+        }
+    </style>
+</head>
+<body>
+
+    <h2>הגלריה שלי</h2>
+
+    <!-- מסך טעינה -->
+    <div class="loader-container" id="loading-screen">
+        <div class="spinner"></div>
+        <div id="status-text">טוען תמונות...</div>
+    </div>
+
+    <!-- קונטיינר המצגת -->
+    <div class="slideshow-container" id="slideshow" style="display:none;">
+        <div class="slides-wrapper" id="slides-wrapper"></div>
+        
+        <div class="nav-btn prev" onclick="changeSlide(-1)">&#10094;</div>
+        <div class="nav-btn next" onclick="changeSlide(1)">&#10095;</div>
+
+        <div class="dots-container" id="dots-wrapper"></div>
+    </div>
+
+    <script>
+        const imageFolder = 'img/';
+        const imageExtension = '.png';
+        const imagesList = [];
+        let currentLoadIndex = 1;
+        let currentSlideIndex = 0;
+        let slideInterval;
+
+        // פונקציה לסריקת התמונות בתיקייה
+        function scanImages() {
+            const img = new Image();
+            
+            img.onload = function() {
+                imagesList.push(img.src);
+                currentLoadIndex++;
+                scanImages();
+            };
+            
+            img.onerror = function() {
+                if (imagesList.length > 0) {
+                    initSlideshow();
+                } else {
+                    document.getElementById('loading-screen').innerHTML = "לא נמצאו תמונות.";
+                }
+            };
+            
+            img.src = `${imageFolder}${currentLoadIndex}${imageExtension}`;
+        }
+
+        // בניית המצגת לאחר סיום הסריקה
+        function initSlideshow() {
+            document.getElementById('loading-screen').style.display = 'none';
+            const slideshow = document.getElementById('slideshow');
+            slideshow.style.display = 'block';
+            
+            const slidesWrapper = document.getElementById('slides-wrapper');
+            const dotsWrapper = document.getElementById('dots-wrapper');
+            
+            imagesList.forEach((src, index) => {
+                // יצירת תמונה
+                const imgElement = document.createElement('img');
+                imgElement.src = src;
+                imgElement.className = 'slide';
+                
+                // יצירת נקודת ניווט
+                const dotElement = document.createElement('div');
+                dotElement.className = 'dot';
+                dotElement.onclick = () => goToSlide(index);
+
+                if (index === 0) {
+                    imgElement.classList.add('active');
+                    dotElement.classList.add('active');
+                }
+
+                slidesWrapper.appendChild(imgElement);
+                dotsWrapper.appendChild(dotElement);
+            });
+
+            // הפעלת התחלפות אוטומטית
+            startAutoSlide();
+
+            // עצירת האנימציה כשמרחפים עם העכבר
+            slideshow.addEventListener('mouseenter', stopAutoSlide);
+            slideshow.addEventListener('mouseleave', startAutoSlide);
+        }
+
+        // מעבר לשקופית הבאה/קודמת
+        function changeSlide(direction) {
+            const newIndex = (currentSlideIndex + direction + imagesList.length) % imagesList.length;
+            goToSlide(newIndex);
+        }
+
+        // מעבר לשקופית ספציפית
+        function goToSlide(index) {
+            const slides = document.getElementsByClassName("slide");
+            const dots = document.getElementsByClassName("dot");
+            
+            if (slides.length === 0) return;
+
+            // הסרת הסטטוס הפעיל מהשקופית והנקודה הנוכחית
+            slides[currentSlideIndex].classList.remove("active");
+            dots[currentSlideIndex].classList.remove("active");
+            
+            // עדכון אינדקס
+            currentSlideIndex = index;
+            
+            // הפעלת השקופית והנקודה החדשה
+            slides[currentSlideIndex].classList.add("active");
+            dots[currentSlideIndex].classList.add("active");
+        }
+
+        // פונקציות לאוטומציה של המצגת
+        function startAutoSlide() {
+            stopAutoSlide(); // מניעת כפילויות
+            slideInterval = setInterval(() => {
+                changeSlide(1);
+            }, 4000); // מחליף תמונה כל 4 שניות
+        }
+
+        function stopAutoSlide() {
+            clearInterval(slideInterval);
+        }
+
+        // התחלת תהליך עם טעינת הדף
+        window.onload = scanImages;
+    </script>
+</body>
+</html>

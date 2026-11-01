@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>גלריה סורקת - תמונות וקובצי URL</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #141e30, #243b55);
+            color: #ffffff;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        h2 { font-weight: 300; letter-spacing: 2px; margin-bottom: 30px; }
+
+        .loader-container {
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .slideshow-container {
+            width: 90%; max-width: 900px; position: relative; border-radius: 20px;
+            overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); background-color: #000;
+        }
+        .slides-wrapper { position: relative; width: 100%; padding-top: 56.25%; }
+
+        .slide-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0; transition: opacity 1s ease-in-out; z-index: 0; background: #fff;
+        }
+        .slide-container.active { opacity: 1; z-index: 1; }
+
+        img.slide-content {
+            width: 100%; height: 100%; object-fit: cover;
+            transform: scale(1); transition: transform 6s linear;
+        }
+        .slide-container.active img.slide-content { transform: scale(1.08); }
+
+        iframe.slide-content { width: 100%; height: 100%; border: none; }
+
+        .nav-btn {
+            position: absolute; top: 50%; transform: translateY(-50%); z-index: 10;
+            background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2); color: white; width: 50px;
+            height: 50px; border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; font-size: 24px; cursor: pointer; transition: all 0.3s ease;
+        }
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-50%) scale(1.1); }
+        .prev { right: 20px; } .next { left: 20px; }
+
+        .dots-container {
+            position: absolute; bottom: 20px; width: 100%; display: flex;
+            justify-content: center; gap: 10px; z-index: 10;
+        }
+        .dot {
+            width: 12px; height: 12px; background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%; cursor: pointer; transition: all 0.3s ease;
+        }
+        .dot.active, .dot:hover { background: #ffffff; transform: scale(1.3); }
+    </style>
+</head>
+<body>
+
+    <h2>סורק אוטומטי לגלריה</h2>
+
+    <div class="loader-container" id="loading-screen">
+        <div class="spinner"></div>
+        <div id="status-text">סורק קבצים מתיקיית img... (קובץ 1)</div>
+    </div>
+
+    <div class="slideshow-container" id="slideshow" style="display:none;">
+        <div class="slides-wrapper" id="slides-wrapper"></div>
+        <div class="nav-btn prev" onclick="changeSlide(-1)">&#10094;</div>
+        <div class="nav-btn next" onclick="changeSlide(1)">&#10095;</div>
+        <div class="dots-container" id="dots-wrapper"></div>
+    </div>
+
+    <script>
+        const folder = 'img/';
+        const mediaList = [];
+        let currentIndex = 1;
+        let currentSlideIndex = 0;
+        let slideInterval;
+
+        // הפונקציה המרכזית שסורקת קובץ אחרי קובץ
+        function checkNextMedia() {
+            document.getElementById('status-text').innerText = `סורק קבצים מתיקיית img... (בודק את מס' ${currentIndex})`;
+            
+            const pngPath = `${folder}${currentIndex}.png`;
+            const urlPath = `${folder}${currentIndex}.url`;
+
+            const img = new Image();
+            
+            // 1. קודם מנסים לטעון כתמונה (.png)
+            img.onload = function() {
+                mediaList.push({ type: 'image', src: pngPath });
+                currentIndex++;
+                checkNextMedia(); // ממשיכים לבא בתור
+            };
+            
+            // 2. אם התמונה לא קיימת, ננסה לחפש קובץ .url
+            img.onerror = async function() {
+                try {
+                    const response = await fetch(urlPath);
+                    if (response.ok) {
+                        const text = await response.text();
+                        // פונקציית חילוץ הלינק מתוך קובץ הטקסט
+                        const extractedUrl = parseUrlFile(text);
+                        
+                        if (extractedUrl) {
+                            // אם זה יוטיוב רגיל, נמיר אותו ל-embed כדי שיוכל לעבוד באייפריים
+                            const finalUrl = convertToEmbedIfYouTube(extractedUrl);
+                            mediaList.push({ type: 'iframe', src: finalUrl });
+                            currentIndex++;
+                            checkNextMedia(); // ממשיכים לבא בתור
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    // התעלמות משגיאות רשת (כמו 404) כדי לאפשר לסקריפט לסיים בצורה חלקה
+                }
+
+                // 3. אם גם .png וגם .url לא קיימים (או שה-fetch נכשל), סיימנו את הרצף
+                if (mediaList.length > 0) {
+                    initSlideshow();
+                } else {
+                    document.getElementById('loading-screen').innerHTML = "לא נמצאו קבצים בתיקייה.";
+                }
+            };
+            
+            img.src = pngPath;
+        }
+
+        // פונקציה שעושה Parsing לקובץ ה-.url כדי למצוא את הכתובת
+        function parseUrlFile(fileContent) {
+            // מחפש שורה שמתחילה ב- URL= (לא משנה אם אותיות גדולות או קטנות)
+            const match = fileContent.match(/^URL=(.+)$/im);
+            return match ? match[1].trim() : null;
+        }
+
+        // המרה ליוטיוב כדי שיוצג בתוך ה-Iframe
+        function convertToEmbedIfYouTube(url) {
+            const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+            const match = url.match(ytRegex);
+            if (match && match[1]) {
+                return `https://www.youtube.com/embed/${match[1]}`;
+            }
+            return url;
+        }
+
+        // בניית המצגת (כמו בגרסאות הקודמות)
+        function initSlideshow() {
+            document.getElementById('loading-screen').style.display = 'none';
+            const slideshow = document.getElementById('slideshow');
+            slideshow.style.display = 'block';
+            
+            const slidesWrapper = document.getElementById('slides-wrapper');
+            const dotsWrapper = document.getElementById('dots-wrapper');
+            
+            mediaList.forEach((item, index) => {
+                const slideContainer = document.createElement('div');
+                slideContainer.className = 'slide-container';
+                
+                let contentElement;
+
+                if (item.type === 'image') {
+                    contentElement = document.createElement('img');
+                    contentElement.src = item.src;
+                } else if (item.type === 'iframe') {
+                    contentElement = document.createElement('iframe');
+                    contentElement.src = item.src;
+                    contentElement.setAttribute('loading', 'lazy');
+                    if (item.src.includes('youtube')) {
+                        contentElement.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+                        contentElement.allowFullscreen = true;
+                    }
+                }
+                
+                contentElement.className = 'slide-content';
+                slideContainer.appendChild(contentElement);
+
+                const dotElement = document.createElement('div');
+                dotElement.className = 'dot';
+                dotElement.onclick = () => goToSlide(index);
+
+                if (index === 0) {
+                    slideContainer.classList.add('active');
+                    dotElement.classList.add('active');
+                }
+
+                slidesWrapper.appendChild(slideContainer);
+                dotsWrapper.appendChild(dotElement);
+            });
+
+            startAutoSlide();
+
+            slideshow.addEventListener('mouseenter', stopAutoSlide);
+            slideshow.addEventListener('mouseleave', () => {
+                if (mediaList[currentSlideIndex].type !== 'iframe') startAutoSlide();
+            });
+        }
+
+        function changeSlide(direction) {
+            const newIndex = (currentSlideIndex + direction + mediaList.length) % mediaList.length;
+            goToSlide(newIndex);
+        }
+
+        function goToSlide(index) {
+            const slides = document.getElementsByClassName("slide-container");
+            const dots = document.getElementsByClassName("dot");
+            
+            slides[currentSlideIndex].classList.remove("active");
+            dots[currentSlideIndex].classList.remove("active");
+            
+            currentSlideIndex = index;
+            
+            slides[currentSlideIndex].classList.add("active");
+            dots[currentSlideIndex].classList.add("active");
+
+            if (mediaList[currentSlideIndex].type === 'iframe') {
+                stopAutoSlide();
+            } else {
+                startAutoSlide();
+            }
+        }
+
+        function startAutoSlide() {
+            stopAutoSlide(); 
+            slideInterval = setInterval(() => { changeSlide(1); }, 4000); 
+        }
+
+        function stopAutoSlide() { clearInterval(slideInterval); }
+
+        // התחלת הסריקה מיד עם טעינת הדף
+        window.onload = checkNextMedia;
+    </script>
+</body>
+</html>
