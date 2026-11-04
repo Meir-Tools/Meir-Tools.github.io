@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meir-Tools Dashboard</title>
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --accent: #38bdf8;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); padding: 2rem; min-height: 100vh; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+    h1 { font-size: 1.8rem; color: var(--accent); }
+    .btn { background: var(--accent); color: #000; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-weight: bold; cursor: pointer; text-decoration: none; }
+    .btn-outline { background: transparent; color: var(--accent); border: 1px solid var(--accent); margin-right: 0.5rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; transition: transform 0.2s; }
+    .card:hover { transform: translateY(-3px); }
+    .card h3 { margin-bottom: 0.5rem; color: #fff; }
+    .card p { color: var(--text-sub); font-size: 0.9rem; margin-bottom: 1rem; }
+    .card a { display: inline-block; color: var(--accent); text-decoration: none; font-weight: 500; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; }
+    .modal-content { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 2rem; width: 90%; max-width: 500px; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.3rem; font-size: 0.9rem; }
+    .form-group input, .form-group textarea { width: 100%; padding: 0.5rem; background: var(--bg-dark); border: 1px solid var(--border); color: #fff; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>Meir-Tools Dashboard</h1>
+      <p style="color: var(--text-sub); font-size: 0.9rem;">ריכוז הכלים והפרויקטים</p>
+    </div>
+    <div>
+      <button class="btn btn-outline" onclick="exportConfig()">ייצוא tools-config.json</button>
+      <button class="btn" onclick="openAdmin()">ממשק ניהול</button>
+    </div>
+  </header>
+
+  <main class="grid" id="tools-container">
+    <!-- הכלים ייטענו כאן -->
+  </main>
+
+  <div class="modal" id="admin-modal">
+    <div class="modal-content">
+      <h2 style="margin-bottom: 1rem;">הוספת כלי חדש</h2>
+      <div class="form-group">
+        <label>שם הכלי</label>
+        <input type="text" id="tool-name">
+      </div>
+      <div class="form-group">
+        <label>תיאור</label>
+        <textarea id="tool-desc"></textarea>
+      </div>
+      <div class="form-group">
+        <label>קישור (URL)</label>
+        <input type="text" id="tool-url" placeholder="/i2c_converter.html או https://...">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+        <button class="btn btn-outline" onclick="closeAdmin()">ביטול</button>
+        <button class="btn" onclick="addTool()">הוסף כלי</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let tools = [];
+
+    async function loadTools() {
+      try {
+        let res = await fetch('tools-config.json');
+        if (res.ok) {
+          tools = await res.json();
+        } else {
+          tools = JSON.parse(localStorage.getItem('meir_tools')) || [];
+        }
+      } catch (e) {
+        tools = JSON.parse(localStorage.getItem('meir_tools')) || [];
+      }
+      renderTools();
+    }
+
+    function renderTools() {
+      const container = document.getElementById('tools-container');
+      if (tools.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-sub);">אין כלים להצגה. לחץ על ממשק ניהול כדי להוסיף.</p>';
+        return;
+      }
+      container.innerHTML = tools.map(t => `
+        <div class="card">
+          <h3>${t.name}</h3>
+          <p>${t.desc}</p>
+          <a href="${t.url}" target="_blank">פתח כלי &larr;</a>
+        </div>
+      `).join('');
+    }
+
+    function openAdmin() { document.getElementById('admin-modal').style.display = 'flex'; }
+    function closeAdmin() { document.getElementById('admin-modal').style.display = 'none'; }
+
+    function addTool() {
+      const name = document.getElementById('tool-name').value;
+      const desc = document.getElementById('tool-desc').value;
+      const url = document.getElementById('tool-url').value;
+
+      if (!name || !url) return alert('נא למלא שם וקישור');
+
+      tools.push({ name, desc, url });
+      localStorage.setItem('meir_tools', JSON.stringify(tools));
+      renderTools();
+      closeAdmin();
+
+      document.getElementById('tool-name').value = '';
+      document.getElementById('tool-desc').value = '';
+      document.getElementById('tool-url').value = '';
+    }
+
+    function exportConfig() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tools, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "tools-config.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    loadTools();
+  </script>
+</body>
+</html>

@@ -1,24 +1,180 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>meir-e | </title>
-  </head>
-  <body style="background-color:Gray;" >
-    <h1>Meir-Tools | Hello World | https://meir-tools.github.io</h1>
-    <p>I'm hosted with GitHub Pages.</p>
-    <p><a href="https://en.wikipedia.org/wiki/Field-programmable_gate_array">FPGA</a> | <a href="https://github.com/Meir-Tools/ta">TA</a></p>
-		
-    <p><a href="https://github.com/Meir-Tools/MAN">The MAN Project</a></p>
-    <p><a href="/">some img to test services</a></p>
-    <p><a href="https://www.imagetotext.info/">https://www.imagetotext.info/</a></p>
-    <p><a href="/i2c_converter.html">/i2c_converter.html</a></p>
-    <p><a href="/sun/ver0.html">sun</a></p>
-    <p><a href="/KONIBOX/index.html">konibox_flasher</a></p>
-    <p><a href="https://www.youtube.com/watch?v=CtA5ow22ylk">konibox</a></p>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meir-Tools Dashboard</title>
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: #151c2c;
+      --accent: #38bdf8;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --border: #1e293b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); padding: 2rem; min-height: 100vh; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+    h1 { font-size: 1.8rem; color: var(--accent); }
+    .btn { background: var(--accent); color: #000; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: bold; cursor: pointer; text-decoration: none; }
+    .btn-outline { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; transition: transform 0.2s; position: relative; }
+    .card:hover { transform: translateY(-3px); }
+    .card h3 { margin-bottom: 0.5rem; color: #fff; }
+    .card p { color: var(--text-sub); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .card a { display: inline-block; color: var(--accent); text-decoration: none; font-weight: 500; }
     
-    <svg height="32" aria-hidden="true" viewBox="0 0 16 16" version="1.1" width="32" data-view-component="true" class="octicon octicon-mark-github v-align-middle color-fg-default">
-      <a href="https://github.com/Meir-Tools" target="_blank">
-	  <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
-    </svg>
-  </body>
+    /* Modal - מוודא שהוא מוסתר בהתחלה */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 100; }
+    .modal-content { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.3rem; font-size: 0.9rem; color: var(--text-sub); }
+    .form-group input, .form-group textarea { width: 100%; padding: 0.6rem; background: var(--bg-dark); border: 1px solid var(--border); color: #fff; border-radius: 6px; }
+    .admin-item { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem; background: var(--bg-dark); border-radius: 6px; margin-bottom: 0.5rem; border: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>Meir-Tools Dashboard</h1>
+      <p style="color: var(--text-sub); font-size: 0.9rem;">ריכוז כלים ופרויקטים</p>
+    </div>
+    <div>
+      <button class="btn" onclick="openAdmin()">ניהול</button>
+    </div>
+  </header>
+
+  <main class="grid" id="tools-container"></main>
+
+  <!-- חלון ניהול - סגור ברירת מחדל -->
+  <div class="modal" id="admin-modal" style="display: none;">
+    <div class="modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h2>ממשק ניהול</h2>
+        <button class="btn btn-outline" onclick="closeAdmin()">✕</button>
+      </div>
+
+      <h3 style="margin-bottom: 0.8rem; font-size: 1.1rem; color: var(--accent);">הוספת כלי חדש</h3>
+      <div class="form-group">
+        <label>שם הכלי</label>
+        <input type="text" id="tool-name">
+      </div>
+      <div class="form-group">
+        <label>תיאור</label>
+        <textarea id="tool-desc" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label>קישור (URL)</label>
+        <input type="text" id="tool-url" placeholder="/i2c_converter.html או https://...">
+      </div>
+      <button class="btn" onclick="addTool()" style="width: 100%; margin-bottom: 2rem;">הוסף כלי לרשימה</button>
+
+      <h3 style="margin-bottom: 0.8rem; font-size: 1.1rem; color: var(--accent);">ניהול כלים קיימים</h3>
+      <div id="admin-tools-list" style="margin-bottom: 1.5rem;"></div>
+
+      <div style="border-top: 1px solid var(--border); padding-top: 1rem; text-align: center;">
+        <button class="btn btn-outline" onclick="downloadUpdatedHTML()" style="width: 100%;">הורד index.html מעודכן ל-GitHub</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let defaultTools = [
+      { id: 1, name: "I2C Converter", desc: "ממיר תצורות I2C", url: "/i2c_converter.html" },
+      { id: 2, name: "KoniBox Flasher", desc: "כלי צריבה ל-KoniBox", url: "/KONIBOX/index.html" },
+      { id: 3, name: "Sun Project", desc: "גרסה 0 של פרויקט Sun", url: "/sun/ver0.html" },
+      { id: 4, name: "The MAN Project", desc: "פרויקט ה-MAN ב-GitHub", url: "https://github.com/Meir-Tools/MAN" },
+      { id: 5, name: "Image to Text", desc: "כלי חיצוני להמרת תמונות לטקסט", url: "https://www.imagetotext.info/" }
+    ];
+
+    let tools = JSON.parse(localStorage.getItem('meir_tools')) || defaultTools;
+
+    function renderTools() {
+      const container = document.getElementById('tools-container');
+      if (tools.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-sub);">אין כלים להצגה.</p>';
+        return;
+      }
+      container.innerHTML = tools.map(t => `
+        <div class="card">
+          <h3>${t.name}</h3>
+          <p>${t.desc || ''}</p>
+          <a href="${t.url}" target="_blank">פתח כלי &larr;</a>
+        </div>
+      `).join('');
+    }
+
+    function openAdmin() {
+      renderAdminList();
+      document.getElementById('admin-modal').style.display = 'flex';
+    }
+
+    function closeAdmin() {
+      document.getElementById('admin-modal').style.display = 'none';
+    }
+
+    function addTool() {
+      const name = document.getElementById('tool-name').value;
+      const desc = document.getElementById('tool-desc').value;
+      const url = document.getElementById('tool-url').value;
+
+      if (!name || !url) return alert('נא למלא שם וקישור');
+
+      tools.push({ id: Date.now(), name, desc, url });
+      saveAndRefresh();
+
+      document.getElementById('tool-name').value = '';
+      document.getElementById('tool-desc').value = '';
+      document.getElementById('tool-url').value = '';
+    }
+
+    function deleteTool(id) {
+      tools = tools.filter(t => t.id !== id);
+      saveAndRefresh();
+    }
+
+    function saveAndRefresh() {
+      localStorage.setItem('meir_tools', JSON.stringify(tools));
+      renderTools();
+      renderAdminList();
+    }
+
+    function renderAdminList() {
+      const list = document.getElementById('admin-tools-list');
+      list.innerHTML = tools.map(t => `
+        <div class="admin-item">
+          <div>
+            <strong>${t.name}</strong>
+            <div style="font-size: 0.8rem; color: var(--text-sub);">${t.url}</div>
+          </div>
+          <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="deleteTool(${t.id})">מחק</button>
+        </div>
+      `).join('');
+    }
+
+    function downloadUpdatedHTML() {
+      // סוגר את המודאל לפני ההורדה כדי שהקובץ המורד יורד כשהמודאל מוסתר
+      closeAdmin();
+      
+      setTimeout(() => {
+        let currentHTML = document.documentElement.outerHTML;
+        const updatedToolsScript = `let defaultTools = ${JSON.stringify(tools, null, 2)};`;
+        currentHTML = currentHTML.replace(/let defaultTools = \[[\s\S]*?\];/, updatedToolsScript);
+
+        const blob = new Blob(["<!DOCTYPE html>\n" + currentHTML], { type: "text/html;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "index.html";
+        a.click();
+      }, 100);
+    }
+
+    renderTools();
+  </script>
+</body>
 </html>
