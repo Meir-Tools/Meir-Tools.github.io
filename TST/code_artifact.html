@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>שיתוף טקסט מהיר</title>
+    <!-- טעינת Tailwind CSS לעיצוב מודרני ורספונסיבי -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- טעינת גופן Heebo המותאם לעברית נקייה -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Heebo', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 selection:bg-indigo-500 selection:text-white transition-colors duration-200">
+
+    <!-- כרטיס מרכזי -->
+    <main class="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-200/70 dark:shadow-black/40 border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8">
+        
+        <!-- כותרת ואייקון עליון -->
+        <header class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mb-4 shadow-sm border border-indigo-100 dark:border-indigo-900/50">
+                <!-- אייקון שיתוף SVG -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                שיתוף טקסט מהיר
+            </h1>
+            <p class="text-sm sm:text-base text-slate-500 dark:text-slate-400 mt-1.5">
+                הקלידו או הדביקו הודעה ולחצו על הכפתור לשיתוף מיידי
+            </p>
+        </header>
+
+        <!-- אזור הזנת הטקסט -->
+        <div class="space-y-4">
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <label for="share-text" class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        הטקסט לשיתוף:
+                    </label>
+                    <!-- כפתור ניקוי מהיר -->
+                    <button 
+                        type="button" 
+                        id="clear-btn"
+                        class="text-xs font-medium text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                        title="נקה טקסט"
+                    >
+                        נקה הכל
+                    </button>
+                </div>
+
+                <textarea 
+                    id="share-text" 
+                    rows="5" 
+                    placeholder="כתבו כאן את ההודעה שתרצו לשלוח..."
+                    class="w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/70 px-4 py-3.5 text-base text-slate-900 dark:text-white placeholder-slate-400 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 transition-all resize-none leading-relaxed"
+                >היי! תראו את ההודעה הזו ששלחתי ישירות דרך דף השיתוף המהיר שלי 🚀</textarea>
+                
+                <!-- מונה תווים -->
+                <div class="flex justify-end mt-1.5">
+                    <span id="char-count" class="text-xs text-slate-400 dark:text-slate-500">0 תווים</span>
+                </div>
+            </div>
+
+            <!-- כפתור השיתוף הראשי -->
+            <button 
+                type="button" 
+                id="share-btn"
+                class="w-full flex items-center justify-center gap-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-semibold text-lg py-4 px-6 shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 transition-all cursor-pointer focus:outline-none focus:ring-4 focus:ring-indigo-500/30"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span>שתף עכשיו</span>
+            </button>
+        </div>
+
+        <!-- אינדיקציית תמיכה במכשיר -->
+        <footer class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 text-center">
+            <p id="support-badge" class="text-xs text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1.5">
+                <!-- יתעדכן דינמית דרך JS -->
+            </p>
+        </footer>
+    </main>
+
+    <!-- הודעת Toast צפה למשוב למשתמש (מחליפה alert) -->
+    <div 
+        id="toast" 
+        role="status"
+        aria-live="polite"
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-24 opacity-0 pointer-events-none transition-all duration-300 z-50 w-[90%] max-w-sm"
+    >
+        <div id="toast-inner" class="flex items-center gap-3 px-4 py-3.5 rounded-2xl shadow-2xl bg-slate-900 dark:bg-slate-800 text-white border border-slate-700/80 text-sm font-medium">
+            <span id="toast-icon" class="shrink-0 text-emerald-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+            </span>
+            <span id="toast-message" class="leading-snug">הטקסט הועתק ללוח!</span>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // איתור אלמנטים בדף
+            const textarea = document.getElementById('share-text');
+            const shareBtn = document.getElementById('share-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const charCount = document.getElementById('char-count');
+            const supportBadge = document.getElementById('support-badge');
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            let toastTimeout = null;
+
+            // פונקציה לעדכון מונה התווים
+            function updateCharCount() {
+                const length = textarea.value.length;
+                charCount.textContent = `${length} תווים`;
+            }
+
+            // פונקציה להצגת הודעה קופצת נקייה (Toast)
+            function showToast(message, type = 'success') {
+                toastMessage.textContent = message;
+
+                // התאמת אייקון לפי סוג ההודעה
+                if (type === 'warning') {
+                    toastIcon.className = 'shrink-0 text-amber-400';
+                    toastIcon.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>`;
+                } else {
+                    toastIcon.className = 'shrink-0 text-emerald-400';
+                    toastIcon.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>`;
+                }
+
+                // הצגת ה-Toast
+                toast.classList.remove('translate-y-24', 'opacity-0');
+                toast.classList.add('translate-y-0', 'opacity-100');
+
+                clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => {
+                    toast.classList.remove('translate-y-0', 'opacity-100');
+                    toast.classList.add('translate-y-24', 'opacity-0');
+                }, 3200);
+            }
+
+            // פונקציית גיבוי להעתקה ללוח (עובדת גם בתוך iFrame וגם בדפדפנים ישנים)
+            function fallbackCopyToClipboard(text) {
+                try {
+                    const tempInput = document.createElement('textarea');
+                    tempInput.value = text;
+                    tempInput.style.position = 'fixed';
+                    tempInput.style.opacity = '0';
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                    showToast('תפריט שיתוף אינו זמין כאן — הטקסט הועתק ללוח!');
+                } catch (err) {
+                    showToast('לא ניתן היה להעתיק את הטקסט אוטומטית.', 'warning');
+                }
+            }
+
+            // בדיקה והצגת סטטוס תמיכה של הדפדפן בתפריט שיתוף מובנה
+            if (navigator.share) {
+                supportBadge.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                    <span>המכשיר שלך תומך בתפריט שיתוף מובנה</span>
+                `;
+            } else {
+                supportBadge.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+                    <span>מצב תצוגה/מחשב: לחיצה תעתיק את הטקסט ללוח</span>
+                `;
+            }
+
+            // מאזין ללחיצה על כפתור השיתוף
+            shareBtn.addEventListener('click', async () => {
+                const textToShare = textarea.value.trim();
+
+                // וידוא שהתיבה אינה ריקה
+                if (!textToShare) {
+                    showToast('אנא הקלידו טקסט כלשהו לפני השיתוף.', 'warning');
+                    textarea.focus();
+                    return;
+                }
+
+                // ניסיון להפעיל את תפריט השיתוף המובנה של הסמארטפון
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            text: textToShare
+                        });
+                        // אם השיתוף הושלם בהצלחה
+                        showToast('התוכן שותף בהצלחה!');
+                    } catch (error) {
+                        // אם המשתמש סגר את התפריט בעצמו (AbortError) לא מציגים שגיאה,
+                        // אך אם נחסם בגלל הרשאות (כמו בתוך iFrame) עוברים להעתקה ללוח
+                        if (error.name !== 'AbortError') {
+                            fallbackCopyToClipboard(textToShare);
+                        }
+                    }
+                } else {
+                    // דפדפן שאינו תומך ב-Web Share API (למשל מחשב רגיל)
+                    fallbackCopyToClipboard(textToShare);
+                }
+            });
+
+            // מאזין לכפתור ניקוי הטקסט
+            clearBtn.addEventListener('click', () => {
+                textarea.value = '';
+                updateCharCount();
+                textarea.focus();
+            });
+
+            // עדכון מונה התווים בזמן הקלדה
+            textarea.addEventListener('input', updateCharCount);
+            
+            // אתחול מונה התווים בטעינה
+            updateCharCount();
+        });
+    </script>
+</body>
+</html>
